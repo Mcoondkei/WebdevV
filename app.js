@@ -201,7 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Popkern Flavors Data
   const popkernFlavors = [
     { name: 'Apple Cinnamon', desc: 'Crisp apple flavor infused with warm aromatic cinnamon glaze.' },
-    { name: 'Cheddar Jalapeno', desc: 'Sharp cheddar cheese blended with a fiery jalapeno kick.' },
+    { name: 'Cheddar Jalapeno', desc: 'Sharp cheddar cheese blended with a fiery jalapeño kick.' },
     { name: 'Churro', desc: 'Sweet cinnamon sugar coating layered over buttery kettle corn.' },
     { name: 'Chocolate', desc: 'Rich dark chocolate drizzle over crisp caramelized popcorn.' },
     { name: 'Cheddar', desc: 'Classic real Wisconsin cheddar cheese coating.' },
@@ -354,13 +354,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   // ==========================================
-  // 6. REAL-WORLD DYNAMIC CALENDAR SYSTEM (SUPABASE INTEGRATION)
+  // 6. REAL-WORLD DYNAMIC CALENDAR SYSTEM
   // ==========================================
-
-  // Supabase Credentials
-  const SUPABASE_URL = 'https://pcxudiubzqezdwjwvjfx.supabase.co';
-  const SUPABASE_ANON_KEY = 'sb_publishable_mK-p-eGoCpGQk7ZCqsSeMg_IFoWs-qW';
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const calendarDates = [
+    { year: 2026, month: 10, day: 7, title: 'Downtown Farmers Market' },   // November 7, 2026
+    { year: 2026, month: 10, day: 14, title: 'Holiday Craft Bazaar' },     // November 14, 2026
+    { year: 2026, month: 10, day: 20, title: 'Winter Artisan Showcase' }   // November 20, 2026
+  ];
 
   const deckcardDates = [
     { year: 2026, month: 10, day: 7, title: 'Tournament Event' },
@@ -368,39 +368,26 @@ document.addEventListener('DOMContentLoaded', () => {
     { year: 2026, month: 10, day: 24, title: 'Tournament Event' }
   ];
 
-  // Automatically generates months from current month up through the latest event's month
-  function generateMonthsUpToLatestEvent(eventList) {
+  // Automatically generates current month + upcoming 3 months dynamically
+  function generateUpcomingMonths(numMonths = 4) {
     const monthsList = [];
     const currentDate = new Date();
     
-    let latestYear = currentDate.getFullYear();
-    let latestMonth = currentDate.getMonth();
-
-    eventList.forEach(ev => {
-      const eventTime = new Date(ev.year, ev.month, 1).getTime();
-      const latestTime = new Date(latestYear, latestMonth, 1).getTime();
-      if (eventTime > latestTime) {
-        latestYear = ev.year;
-        latestMonth = ev.month;
-      }
-    });
-
-    let iterDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const endLimitDate = new Date(latestYear, latestMonth, 1);
-
-    while (iterDate <= endLimitDate) {
-      const year = iterDate.getFullYear();
-      const monthIndex = iterDate.getMonth();
-      const name = iterDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+    for (let i = 0; i < numMonths; i++) {
+      const targetDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + i, 1);
+      const year = targetDate.getFullYear();
+      const monthIndex = targetDate.getMonth();
+      const name = targetDate.toLocaleString('default', { month: 'long', year: 'numeric' });
       
       monthsList.push({ name, year, monthIndex });
-      iterDate.setMonth(iterDate.getMonth() + 1);
     }
     
     return monthsList;
   }
 
-  function setupRealCalendar(prevId, nextId, labelId, gridId, eventList, monthsArray) {
+  const calendarMonths = generateUpcomingMonths(4);
+
+  function setupRealCalendar(prevId, nextId, labelId, gridId, eventList) {
     let currentMonthIdx = 0;
     const prevBtn = document.getElementById(prevId);
     const nextBtn = document.getElementById(nextId);
@@ -410,16 +397,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!grid) return;
 
     function renderCal() {
-      const targetMonthObj = monthsArray[currentMonthIdx];
-      if (label) label.textContent = targetMonthObj.name;
+      const targetMonthObj = calendarMonths[currentMonthIdx];
+      label.textContent = targetMonthObj.name;
       grid.innerHTML = '';
 
       const year = targetMonthObj.year;
       const month = targetMonthObj.monthIndex;
 
+      // Get the first day of the month and total days using real JS Date objects
       const firstDayIndex = new Date(year, month, 1).getDay();
       const totalDays = new Date(year, month + 1, 0).getDate();
 
+      // Render blank offset cells for days before the 1st of the month
       for (let i = 0; i < firstDayIndex; i++) {
         const emptyCell = document.createElement('div');
         emptyCell.className = 'cal-day empty-cell';
@@ -427,11 +416,13 @@ document.addEventListener('DOMContentLoaded', () => {
         grid.appendChild(emptyCell);
       }
 
+      // Render actual days of the month
       for (let dayNum = 1; dayNum <= totalDays; dayNum++) {
         const dayCell = document.createElement('div');
         dayCell.className = 'cal-day';
         dayCell.textContent = dayNum;
 
+        // Check if this specific date matches any scheduled events
         const matchedEvent = eventList.find(e => e.year === year && e.month === month && e.day === dayNum);
         if (matchedEvent) {
           dayCell.classList.add('has-event');
@@ -453,7 +444,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (nextBtn) {
       nextBtn.addEventListener('click', () => {
-        if (currentMonthIdx < monthsArray.length - 1) {
+        if (currentMonthIdx < calendarMonths.length - 1) {
           currentMonthIdx++;
           renderCal();
         }
@@ -463,37 +454,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderCal();
   }
 
-  // Asynchronously fetch Popkern events from Supabase database table `popkern_events`
-  async function loadPopkernCalendarFromSupabase() {
-    const { data: dbEvents, error } = await supabase
-      .from('popkern_events')
-      .select('*');
-
-    if (error) {
-      console.error('Error fetching popkern_events from Supabase:', error);
-      return;
-    }
-
-    const popkernDates = dbEvents.map(ev => {
-      // Splitting YYYY-MM-DD manually to prevent UTC timezone shifts
-      const [year, month, day] = ev.event_date.split('-').map(Number);
-      return {
-        year: year,
-        month: month - 1, // JavaScript months are 0-indexed (0 = Jan, 10 = Nov)
-        day: day,
-        title: ev.title
-      };
-    });
-
-    const popkernMonths = generateMonthsUpToLatestEvent(popkernDates);
-    setupRealCalendar('pk-prev-month', 'pk-next-month', 'pk-month-label', 'pk-calendar', popkernDates, popkernMonths);
-  }
-
-  // Setup Deckcard calendar normally with hardcoded data array
-  const deckcardMonths = generateMonthsUpToLatestEvent(deckcardDates);
-  setupRealCalendar('dc-prev-month', 'dc-next-month', 'dc-month-label', 'dc-calendar', deckcardDates, deckcardMonths);
-
-  // Trigger Supabase fetch for Popkern
-  loadPopkernCalendarFromSupabase();
+  setupRealCalendar('pk-prev-month', 'pk-next-month', 'pk-month-label', 'pk-calendar', calendarDates);
+  setupRealCalendar('dc-prev-month', 'dc-next-month', 'dc-month-label', 'dc-calendar', deckcardDates);
 
 });
