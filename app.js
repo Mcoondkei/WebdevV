@@ -201,7 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Popkern Flavors Data
   const popkernFlavors = [
     { name: 'Apple Cinnamon', desc: 'Crisp apple flavor infused with warm aromatic cinnamon glaze.' },
-    { name: 'Cheddar Jalapeno', desc: 'Sharp cheddar cheese blended with a fiery jalapeño kick.' },
+    { name: 'Cheddar Jalapeno', desc: 'Sharp cheddar cheese blended with a fiery jalapeno kick.' },
     { name: 'Churro', desc: 'Sweet cinnamon sugar coating layered over buttery kettle corn.' },
     { name: 'Chocolate', desc: 'Rich dark chocolate drizzle over crisp caramelized popcorn.' },
     { name: 'Cheddar', desc: 'Classic real Wisconsin cheddar cheese coating.' },
@@ -354,15 +354,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   // ==========================================
-  // 6. REAL-WORLD DYNAMIC CALENDAR SYSTEM
+  // 6. REAL-WORLD DYNAMIC CALENDAR SYSTEM (SUPABASE INTEGRATION)
   // ==========================================
-  const calendarDates = [
-    { year: 2026, month: 10, day: 7, title: 'Downtown Farmers Market' },       // November 7, 2026
-    { year: 2026, month: 10, day: 14, title: 'Holiday Craft Bazaar' },         // November 14, 2026
-    { year: 2026, month: 10, day: 20, title: 'Winter Artisan Showcase' },       // November 20, 2026
-    { year: 2026, month: 11, day: 19, title: 'Downtown Christmas Festival' },  // December 19, 2026
-    { year: 2027, month: 0,  day: 9,  title: 'New Year Festival' }             // January 9, 2027
-  ];
+
+  // Supabase Credentials
+  const SUPABASE_URL = 'https://pcxudiubzqezdwjwvjfx.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_mK-p-eGoCpGQk7ZCqsSeMg_IFoWs-qW';
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   const deckcardDates = [
     { year: 2026, month: 10, day: 7, title: 'Tournament Event' },
@@ -402,9 +400,6 @@ document.addEventListener('DOMContentLoaded', () => {
     return monthsList;
   }
 
-  const popkernMonths = generateMonthsUpToLatestEvent(calendarDates);
-  const deckcardMonths = generateMonthsUpToLatestEvent(deckcardDates);
-
   function setupRealCalendar(prevId, nextId, labelId, gridId, eventList, monthsArray) {
     let currentMonthIdx = 0;
     const prevBtn = document.getElementById(prevId);
@@ -416,7 +411,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderCal() {
       const targetMonthObj = monthsArray[currentMonthIdx];
-      label.textContent = targetMonthObj.name;
+      if (label) label.textContent = targetMonthObj.name;
       grid.innerHTML = '';
 
       const year = targetMonthObj.year;
@@ -468,7 +463,37 @@ document.addEventListener('DOMContentLoaded', () => {
     renderCal();
   }
 
-  setupRealCalendar('pk-prev-month', 'pk-next-month', 'pk-month-label', 'pk-calendar', calendarDates, popkernMonths);
+  // Asynchronously fetch Popkern events from Supabase database table `popkern_events`
+  async function loadPopkernCalendarFromSupabase() {
+    const { data: dbEvents, error } = await supabase
+      .from('popkern_events')
+      .select('*');
+
+    if (error) {
+      console.error('Error fetching popkern_events from Supabase:', error);
+      return;
+    }
+
+    const popkernDates = dbEvents.map(ev => {
+      // Splitting YYYY-MM-DD manually to prevent UTC timezone shifts
+      const [year, month, day] = ev.event_date.split('-').map(Number);
+      return {
+        year: year,
+        month: month - 1, // JavaScript months are 0-indexed (0 = Jan, 10 = Nov)
+        day: day,
+        title: ev.title
+      };
+    });
+
+    const popkernMonths = generateMonthsUpToLatestEvent(popkernDates);
+    setupRealCalendar('pk-prev-month', 'pk-next-month', 'pk-month-label', 'pk-calendar', popkernDates, popkernMonths);
+  }
+
+  // Setup Deckcard calendar normally with hardcoded data array
+  const deckcardMonths = generateMonthsUpToLatestEvent(deckcardDates);
   setupRealCalendar('dc-prev-month', 'dc-next-month', 'dc-month-label', 'dc-calendar', deckcardDates, deckcardMonths);
+
+  // Trigger Supabase fetch for Popkern
+  loadPopkernCalendarFromSupabase();
 
 });
