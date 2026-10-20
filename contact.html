@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact Us | WebdevV</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="main-site">
+
+  <header class="main-header">
+    <div class="container nav-container">
+      <a href="index.html" class="logo-link">
+        <img src="" alt="WebdevV Agency Logo" class="agency-logo-img">
+      </a>
+      <nav class="main-nav">
+        <a href="index.html">Home</a>
+        <a href="templates.html">Templates</a>
+        <a href="about.html">About</a>
+        <a href="contact.html" class="active">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="section container">
+    <h1 class="page-title">Get in Touch</h1>
+    <p class="section-subtitle">Have a website idea or need maintenance for your existing site? Reach out today.</p>
+
+    <div class="grid grid-2 contact-layout">
+      <div class="card">
+        <h3>Contact Information</h3>
+        <p><strong>Email:</strong> contact@webdevv.dev</p>
+        <p><strong>Phone:</strong> (555) 019-2831</p>
+        <p><strong>Office Hours:</strong> Monday – Friday, 9:00 AM – 6:00 PM</p>
+      </div>
+
+      <div class="card">
+        <form class="agency-form" onsubmit="event.preventDefault(); alert('Thank you! Your message has been sent to WebdevV.');">
+          <label for="name">Your Name</label>
+          <input type="text" id="name" placeholder="Jane Doe" required>
+
+          <label for="email">Email Address</label>
+          <input type="email" id="email" placeholder="jane@example.com" required>
+
+          <label for="message">Project Overview</label>
+          <textarea id="message" rows="5" placeholder="Tell us about the website you want to build or maintain..." required></textarea>
+
+          <button type="submit" class="btn btn-primary">Send Message</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <footer class="main-footer">
+    <div class="container footer-content">
+      <p>&copy; 2026 WebdevV. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
