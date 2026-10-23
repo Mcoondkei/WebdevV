@@ -29,31 +29,45 @@ a {
   text-decoration: none;
 }
 
-/* WebdevV Branding (White & Red Theme) */
+/* WebdevV Branding (White & Red Theme) - Max Height 70px & Vertically Centered Nav */
 .main-header {
   background-color: #FFFFFF;
   border-bottom: 2px solid #F3F4F6;
-  padding: 18px 0;
+  max-height: 70px;
+  height: 70px;
+  display: flex;
+  align-items: center;
   position: sticky;
   top: 0;
   z-index: 100;
+  padding: 0;
 }
 
 .nav-container {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  width: 100%;
 }
 
-.logo {
-  font-size: 1.8rem;
-  font-weight: 800;
-  color: #111827;
-  letter-spacing: -0.5px;
+.logo-link {
+  display: flex;
+  align-items: center;
+  height: 100%;
 }
 
-.logo span {
-  color: #DC2626;
+/* Agency Logo: Max height of the main header (70px) */
+.agency-logo-img {
+  max-height: 60px !important;
+  height: 60px !important;
+  width: auto !important;
+  object-fit: contain;
+}
+
+.main-nav {
+  display: flex;
+  align-items: center;
+  height: 100%;
 }
 
 .main-nav a {
@@ -61,6 +75,8 @@ a {
   margin-left: 24px;
   font-weight: 600;
   transition: color 0.2s;
+  display: flex;
+  align-items: center;
 }
 
 .main-nav a:hover,
@@ -209,7 +225,7 @@ a {
   color: #FFFFFF;
   padding: 12px 0;
   position: sticky;
-  top: 67px;
+  top: 70px;
   z-index: 90;
 }
 
@@ -273,6 +289,13 @@ a {
   font-weight: 800;
 }
 
+/* Specific size constraint for Popkern Logo inside its demo header */
+#demo-popkern .demo-logo-img {
+  max-height: 130px !important;
+  width: auto !important;
+  object-fit: contain;
+}
+
 .demo-nav a {
   margin-left: 15px;
   font-weight: 600;
@@ -296,7 +319,6 @@ a {
 .popkern-theme .demo-brand,
 .popkern-theme a { color: #D97706; }
 
-/* Centered Popkern Hero and Banner Elements */
 .popkern-hero {
   text-align: center;
   padding: 40px 20px;
@@ -410,9 +432,22 @@ a {
   margin: 20px 0;
 }
 
+.slideshow-container img {
+  width: 92% !important;
+  height: auto !important;
+  max-height: 250px;
+  object-fit: cover;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
 .slide-content {
   font-size: 1.4rem;
   font-weight: 700;
+}
+
+.slide-title-header {
+  white-space: pre-line;
 }
 
 .slide-dots {
@@ -453,7 +488,26 @@ a {
 .prev-btn { left: 15px; }
 .next-btn { right: 15px; }
 
-/* POPKERN MODAL SPEC */
+#popkern-flavors-grid .card {
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+#popkern-flavors-grid .card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.12);
+}
+
+#popkern-flavors-grid .card img,
+#popkern-flavors-grid .card .item-img-alt {
+  transition: transform 0.4s ease;
+}
+
+#popkern-flavors-grid .card:hover img,
+#popkern-flavors-grid .card:hover .item-img-alt {
+  transform: scale(1.08);
+}
+
 .frosted-modal-overlay {
   position: fixed;
   top: 0;
