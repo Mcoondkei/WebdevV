@@ -1,7 +1,94 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
 
   // ==========================================
-  // 1. DEMO SWITCHER LOGIC (templates.html)
+  // 0. SUPABASE CLIENT & BUCKETS CONFIG
+  // ==========================================
+  const SUPABASE_URL = 'https://pcxudiubzqezdwjwvjfx.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBjeHVkaXVienFlemR3and2amZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI0NTQ1MjYsImV4cCI6MjEwODAzMDUyNn0.kOBtiuhquRmvPr3yTMTB0g6cpwj50PhjMNVlkel3jAE';
+  let supabaseClient = null;
+
+  if (window.supabase) {
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+
+  // Storage Bucket URLs
+  const LOGOS_BUCKET_URL = `${SUPABASE_URL}/storage/v1/object/public/logos`;
+  const POPKERN_IMAGES_BUCKET_URL = `${SUPABASE_URL}/storage/v1/object/public/popkern_images`;
+
+  // Dynamic Logo Loader (webdevv_logo.jpg and popkern_logo.jpg)
+  function loadLogos() {
+    const agencyLogoImgs = document.querySelectorAll('.agency-logo-img');
+    agencyLogoImgs.forEach(img => {
+      img.src = `${LOGOS_BUCKET_URL}/webdevv_logo.png`;
+      img.alt = 'WebdevV Agency Logo';
+      img.onerror = () => { img.alt = '⚡ WebdevV'; };
+    });
+
+    const popkernLogoImgs = document.querySelectorAll('#demo-popkern .demo-logo-img');
+    popkernLogoImgs.forEach(img => {
+      img.src = `${LOGOS_BUCKET_URL}/popkern_logo.png`;
+      img.alt = '🍿 Popkern Logo';
+      img.onerror = () => { img.alt = '🍿 Popkern'; };
+    });
+  }
+
+  loadLogos();
+
+  // ==========================================
+  // LIVE EVENT FETCH FROM SUPABASE
+  // ==========================================
+  let calendarDates = [];
+
+  if (supabaseClient) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('popkern_events')
+        .select('*')
+        .order('event_date', { ascending: true });
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        calendarDates = data.map(event => {
+          const d = new Date(event.event_date + 'T00:00:00');
+          return {
+            year: d.getFullYear(),
+            month: d.getMonth(),
+            day: d.getDate(),
+            title: event.title,
+            startTime: event.start_time || '9:00 AM',
+            endTime: event.end_time || '5:00 PM',
+            formattedDate: d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
+          };
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching events from Supabase:', err.message);
+    }
+  }
+
+  if (calendarDates.length > 0) {
+    const nextEvent = calendarDates[0];
+    const homeBanner = document.querySelector('#popkern-home .next-event-banner');
+    if (homeBanner) {
+      homeBanner.innerHTML = `
+        <h3>📍 Next Upcoming Market</h3>
+        <p><strong>${nextEvent.title}</strong> — ${nextEvent.formattedDate} | ${nextEvent.startTime} - ${nextEvent.endTime}</p>
+      `;
+    }
+
+    const eventsPageBanner = document.querySelector('#popkern-events .next-event-banner');
+    if (eventsPageBanner) {
+      let listHTML = '<h3>📍 Featured Upcoming Markets</h3>';
+      calendarDates.forEach((ev, idx) => {
+        listHTML += `<p><strong>${idx + 1}. ${ev.title}</strong> — ${ev.formattedDate} | ${ev.startTime} - ${ev.endTime}</p>`;
+      });
+      eventsPageBanner.innerHTML = listHTML;
+    }
+  }
+
+  // ==========================================
+  // 1. DEMO SWITCHER LOGIC
   // ==========================================
   const demoButtons = document.querySelectorAll('.demo-btn');
   const demoWrappers = document.querySelectorAll('.demo-wrapper');
@@ -28,7 +115,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Generic Subpage Navigation Helper (Handles links & logo clicks)
   function setupSubpageNav(navSelector, pageClass) {
     const navLinks = document.querySelectorAll(navSelector);
     navLinks.forEach(link => {
@@ -53,7 +139,6 @@ document.addEventListener('DOMContentLoaded', () => {
   setupSubpageNav('.td-nav-link', 'td-page');
   setupSubpageNav('.dc-nav-link', 'dc-page');
   setupSubpageNav('.dt-nav-link', 'dt-page');
-
 
   // ==========================================
   // 2. POPKERN DROPDOWN MENU & IMAGE ICON TOGGLE
@@ -99,10 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-
-  // ==========================================
-  // 3. 3DREAM DROPDOWN MENU & SEARCH LOGIC
-  // ==========================================
+  // 3Dream Menu & Search
   const tdMenuBtn = document.getElementById('td-menu-btn');
   const tdDropdown = document.getElementById('td-menu-dropdown');
 
@@ -143,27 +225,65 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // ==========================================
+  // SHARED FLAVORS & POPKERN_IMAGES BUCKET DATA
+  // ==========================================
+  const fallbackFlavors = [
+    { name: 'Apple Cinnamon', description: 'Crisp apple flavor infused with warm aromatic cinnamon glaze.', image_filename: 'apple-cinnamon.jpg', is_featured: true },
+    { name: 'Cheddar Jalapeno', description: 'Sharp cheddar cheese blended with a fiery jalapeno kick.', image_filename: 'cheddar-jalapeno.jpg', is_featured: true },
+    { name: 'Churro', description: 'Sweet cinnamon sugar coating layered over buttery kettle corn.', image_filename: 'churro.jpg', is_featured: true },
+    { name: 'Chocolate', description: 'Rich dark chocolate drizzle over crisp caramelized popcorn.', image_filename: 'chocolate.jpg', is_featured: false },
+    { name: 'Cheddar', description: 'Classic real Wisconsin cheddar cheese coating.', image_filename: 'cheddar.jpg', is_featured: false },
+    { name: 'Dill Pickle', description: 'Tangy, savory dill pickle seasoning with garlic hints.', image_filename: 'dill-pickle.jpg', is_featured: false }
+  ];
 
-  // ==========================================
-  // 4. POPKERN SLIDESHOW WITH NEXT/PREV CONTROLS
-  // ==========================================
-  let slideIndex = 0;
-  const slides = document.querySelectorAll('.slideshow-container .slide');
-  const dots = document.querySelectorAll('.slide-dots .dot');
+  let sharedFlavors = fallbackFlavors;
+
+  if (supabaseClient) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('popkern_flavors')
+        .select('*')
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      if (data && data.length > 0) {
+        sharedFlavors = data;
+      }
+    } catch (err) {
+      console.warn('Could not fetch popkern_flavors, using fallback data:', err.message);
+    }
+  }
+
+  function resolveFlavorImageUrl(flavor) {
+    if (flavor.image_url && flavor.image_url.startsWith('http')) {
+      return flavor.image_url;
+    }
+    const filename = flavor.image_filename || flavor.image_url || `${flavor.name.toLowerCase().replace(/\s+/g, '-')}.jpg`;
+    return `${POPKERN_IMAGES_BUCKET_URL}/${filename}`;
+  }
+
+  // Slideshow
+  const slideshowContainer = document.querySelector('.slideshow-container');
+  const slideDotsContainer = document.querySelector('.slide-dots');
   const prevSlideBtn = document.getElementById('pk-prev-slide');
   const nextSlideBtn = document.getElementById('pk-next-slide');
+
+  let slideIndex = 0;
   let slideTimer = null;
+  let activeSlides = [];
+  let activeDots = [];
 
   function showSlide(n) {
-    if (slides.length === 0) return;
-    if (n >= slides.length) slideIndex = 0;
-    if (n < 0) slideIndex = slides.length - 1;
+    if (activeSlides.length === 0) return;
+    if (n >= activeSlides.length) slideIndex = 0;
+    if (n < 0) slideIndex = activeSlides.length - 1;
 
-    slides.forEach(s => s.style.display = 'none');
-    dots.forEach(d => d.classList.remove('active'));
+    activeSlides.forEach(s => s.style.display = 'none');
+    activeDots.forEach(d => d.classList.remove('active'));
 
-    slides[slideIndex].style.display = 'block';
-    if (dots[slideIndex]) dots[slideIndex].classList.add('active');
+    activeSlides[slideIndex].style.display = 'block';
+    if (activeDots[slideIndex]) activeDots[slideIndex].classList.add('active');
   }
 
   function autoPlaySlides() {
@@ -177,37 +297,90 @@ document.addEventListener('DOMContentLoaded', () => {
     slideTimer = setTimeout(autoPlaySlides, 5000);
   }
 
-  if (slides.length > 0) {
-    showSlide(slideIndex);
-    slideTimer = setTimeout(autoPlaySlides, 5000);
+  function loadSlideshow() {
+    if (!slideshowContainer) return;
 
-    if (nextSlideBtn) {
-      nextSlideBtn.addEventListener('click', () => {
-        slideIndex++;
-        showSlide(slideIndex);
-        resetTimer();
-      });
+    let featuredFlavors = sharedFlavors.filter(f => f.is_featured);
+    if (featuredFlavors.length === 0) {
+      featuredFlavors = sharedFlavors.slice(0, 3);
     }
 
-    if (prevSlideBtn) {
-      prevSlideBtn.addEventListener('click', () => {
-        slideIndex--;
-        showSlide(slideIndex);
-        resetTimer();
-      });
+    slideshowContainer.querySelectorAll('.slide').forEach(s => s.remove());
+    if (slideDotsContainer) slideDotsContainer.innerHTML = '';
+
+    featuredFlavors.forEach((flavor, idx) => {
+      const slideDiv = document.createElement('div');
+      slideDiv.className = 'slide fade';
+      
+      const contentDiv = document.createElement('div');
+      contentDiv.className = 'slide-content';
+
+      const headerTitle = document.createElement('h3');
+      headerTitle.className = 'slide-title-header';
+      headerTitle.style.textAlign = 'center';
+      headerTitle.style.marginBottom = '10px';
+      headerTitle.style.fontWeight = 'bold';
+      headerTitle.textContent = `- Featured Flavor -\n${flavor.name}`;
+      contentDiv.appendChild(headerTitle);
+
+      const imageUrl = resolveFlavorImageUrl(flavor);
+      const img = document.createElement('img');
+      img.src = imageUrl;
+      img.alt = `Featured Flavor: ${flavor.name}`;
+      img.onerror = () => {
+        img.style.display = 'none';
+        const altDiv = document.createElement('div');
+        altDiv.className = 'slide-img-alt';
+        altDiv.textContent = flavor.name.substring(0, 3).toUpperCase();
+        contentDiv.appendChild(altDiv);
+      };
+
+      contentDiv.appendChild(img);
+      slideDiv.appendChild(contentDiv);
+      slideshowContainer.insertBefore(slideDiv, prevSlideBtn);
+
+      if (slideDotsContainer) {
+        const dot = document.createElement('span');
+        dot.className = idx === 0 ? 'dot active' : 'dot';
+        dot.addEventListener('click', () => {
+          slideIndex = idx;
+          showSlide(slideIndex);
+          resetTimer();
+        });
+        slideDotsContainer.appendChild(dot);
+      }
+    });
+
+    activeSlides = slideshowContainer.querySelectorAll('.slide');
+    if (slideDotsContainer) {
+      activeDots = slideDotsContainer.querySelectorAll('.dot');
+    }
+
+    if (activeSlides.length > 0) {
+      showSlide(0);
+      resetTimer();
     }
   }
 
-  // Popkern Flavors Data
-  const popkernFlavors = [
-    { name: 'Apple Cinnamon', desc: 'Crisp apple flavor infused with warm aromatic cinnamon glaze.' },
-    { name: 'Cheddar Jalapeno', desc: 'Sharp cheddar cheese blended with a fiery jalapeño kick.' },
-    { name: 'Churro', desc: 'Sweet cinnamon sugar coating layered over buttery kettle corn.' },
-    { name: 'Chocolate', desc: 'Rich dark chocolate drizzle over crisp caramelized popcorn.' },
-    { name: 'Cheddar', desc: 'Classic real Wisconsin cheddar cheese coating.' },
-    { name: 'Dill Pickle', desc: 'Tangy, savory dill pickle seasoning with garlic hints.' }
-  ];
+  loadSlideshow();
 
+  if (nextSlideBtn) {
+    nextSlideBtn.addEventListener('click', () => {
+      slideIndex++;
+      showSlide(slideIndex);
+      resetTimer();
+    });
+  }
+
+  if (prevSlideBtn) {
+    prevSlideBtn.addEventListener('click', () => {
+      slideIndex--;
+      showSlide(slideIndex);
+      resetTimer();
+    });
+  }
+
+  // Flavors Grid
   const pkGrid = document.getElementById('popkern-flavors-grid');
   const pkModal = document.getElementById('popkern-modal');
   const pkModalImg = document.getElementById('pk-modal-img');
@@ -215,33 +388,40 @@ document.addEventListener('DOMContentLoaded', () => {
   const pkModalDesc = document.getElementById('pk-modal-desc');
   const pkModalClose = document.getElementById('pk-modal-close');
 
-  if (pkGrid) {
-    popkernFlavors.forEach(flavor => {
+  function loadFlavorsGrid() {
+    if (!pkGrid) return;
+    pkGrid.innerHTML = '';
+
+    sharedFlavors.forEach(flavor => {
       const card = document.createElement('div');
       card.className = 'card';
       card.style.cursor = 'pointer';
+
+      const imageUrl = resolveFlavorImageUrl(flavor);
+
       card.innerHTML = `
-        <div class="item-img-alt" style="background:#FDE68A; color:#D97706;">[ALT: ${flavor.name}]</div>
+        <img src="${imageUrl}" alt="${flavor.name}" style="width:100%; height:120px; object-fit:cover; border-radius:6px; margin-bottom:10px;" onerror="this.onerror=null; this.replaceWith(Object.assign(document.createElement('div'), {className:'item-img-alt', style:'background:#FDE68A; color:#D97706;', textContent:'[ALT: ${flavor.name}]'}));">
         <h4 style="text-align:center;">${flavor.name}</h4>
       `;
+
       card.addEventListener('click', () => {
-        pkModalImg.textContent = flavor.name.substring(0, 3).toUpperCase();
+        pkModalImg.innerHTML = `<img src="${imageUrl}" alt="${flavor.name}" style="width:100%; height:100%; object-fit:cover; border-radius:8px;" onerror="this.onerror=null; this.parentElement.textContent='${flavor.name.substring(0, 3).toUpperCase()}';">`;
         pkModalTitle.textContent = flavor.name;
-        pkModalDesc.textContent = flavor.desc;
+        pkModalDesc.textContent = flavor.description;
         pkModal.classList.remove('hidden');
       });
+
       pkGrid.appendChild(card);
     });
   }
+
+  loadFlavorsGrid();
 
   if (pkModalClose) {
     pkModalClose.addEventListener('click', () => pkModal.classList.add('hidden'));
   }
 
-
-  // ==========================================
-  // 5. GENERIC MODAL & CART (3Dream & Deckcard)
-  // ==========================================
+  // Generic Modals & Cart Logic
   const genModal = document.getElementById('generic-item-modal');
   const genModalImg = document.getElementById('gen-modal-img');
   const genModalTitle = document.getElementById('gen-modal-title');
@@ -352,40 +532,41 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-
-  // ==========================================
-  // 6. REAL-WORLD DYNAMIC CALENDAR SYSTEM
-  // ==========================================
-  const calendarDates = [
-    { year: 2026, month: 10, day: 7, title: 'Downtown Farmers Market' },   // November 7, 2026
-    { year: 2026, month: 10, day: 14, title: 'Holiday Craft Bazaar' },     // November 14, 2026
-    { year: 2026, month: 10, day: 20, title: 'Winter Artisan Showcase' }   // November 20, 2026
-  ];
-
+  // Real-World Dynamic Calendar System
   const deckcardDates = [
     { year: 2026, month: 10, day: 7, title: 'Tournament Event' },
     { year: 2026, month: 10, day: 18, title: 'Tournament Event' },
     { year: 2026, month: 10, day: 24, title: 'Tournament Event' }
   ];
 
-  // Automatically generates current month + upcoming 3 months dynamically
-  function generateUpcomingMonths(numMonths = 4) {
-    const monthsList = [];
+  function generateDynamicMonthsRange(events) {
     const currentDate = new Date();
-    
-    for (let i = 0; i < numMonths; i++) {
-      const targetDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + i, 1);
-      const year = targetDate.getFullYear();
-      const monthIndex = targetDate.getMonth();
-      const name = targetDate.toLocaleString('default', { month: 'long', year: 'numeric' });
-      
-      monthsList.push({ name, year, monthIndex });
+    const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    let maxTargetDate = new Date(startDate);
+
+    if (events && events.length > 0) {
+      events.forEach(ev => {
+        const evDate = new Date(ev.year, ev.month, ev.day);
+        if (evDate > maxTargetDate) {
+          maxTargetDate = evDate;
+        }
+      });
     }
-    
+
+    const monthsList = [];
+    let iterDate = new Date(startDate);
+
+    while (iterDate <= maxTargetDate) {
+      const year = iterDate.getFullYear();
+      const monthIndex = iterDate.getMonth();
+      const name = iterDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+      monthsList.push({ name, year, monthIndex });
+      iterDate.setMonth(iterDate.getMonth() + 1);
+    }
+
     return monthsList;
   }
-
-  const calendarMonths = generateUpcomingMonths(4);
 
   function setupRealCalendar(prevId, nextId, labelId, gridId, eventList) {
     let currentMonthIdx = 0;
@@ -396,6 +577,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!grid) return;
 
+    const calendarMonths = generateDynamicMonthsRange(eventList);
+
+    // Hide Prev only on the first month (current real month) and
+    // Next only on the last month that has an event. Gap months show both.
+    // visibility (not display) keeps the controls row layout from shifting.
+    function updateNavButtons() {
+      if (prevBtn) prevBtn.style.visibility = currentMonthIdx > 0 ? 'visible' : 'hidden';
+      if (nextBtn) nextBtn.style.visibility = currentMonthIdx < calendarMonths.length - 1 ? 'visible' : 'hidden';
+    }
+
     function renderCal() {
       const targetMonthObj = calendarMonths[currentMonthIdx];
       label.textContent = targetMonthObj.name;
@@ -404,11 +595,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const year = targetMonthObj.year;
       const month = targetMonthObj.monthIndex;
 
-      // Get the first day of the month and total days using real JS Date objects
       const firstDayIndex = new Date(year, month, 1).getDay();
       const totalDays = new Date(year, month + 1, 0).getDate();
 
-      // Render blank offset cells for days before the 1st of the month
       for (let i = 0; i < firstDayIndex; i++) {
         const emptyCell = document.createElement('div');
         emptyCell.className = 'cal-day empty-cell';
@@ -416,13 +605,11 @@ document.addEventListener('DOMContentLoaded', () => {
         grid.appendChild(emptyCell);
       }
 
-      // Render actual days of the month
       for (let dayNum = 1; dayNum <= totalDays; dayNum++) {
         const dayCell = document.createElement('div');
         dayCell.className = 'cal-day';
         dayCell.textContent = dayNum;
 
-        // Check if this specific date matches any scheduled events
         const matchedEvent = eventList.find(e => e.year === year && e.month === month && e.day === dayNum);
         if (matchedEvent) {
           dayCell.classList.add('has-event');
@@ -431,6 +618,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         grid.appendChild(dayCell);
       }
+
+      updateNavButtons();
     }
 
     if (prevBtn) {

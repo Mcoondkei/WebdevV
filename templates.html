@@ -65,36 +65,16 @@
         <p>Hand-crafted in small batches using local ingredients.</p>
       </div>
 
-      <!-- Slideshow with Next & Prev Buttons -->
+      <!-- Slideshow Container -->
       <div class="slideshow-container">
         <button class="slideshow-btn prev-btn" id="pk-prev-slide">&#10094;</button>
         <button class="slideshow-btn next-btn" id="pk-next-slide">&#10095;</button>
-
-        <div class="slide fade">
-          <div class="slide-content">
-            <img src="" alt="🍿 Featured Flavor: Apple Cinnamon" class="slide-img-alt">
-          </div>
-        </div>
-        <div class="slide fade">
-          <div class="slide-content">
-            <img src="" alt="🧀 Featured Flavor: Cheddar Jalapeno" class="slide-img-alt">
-          </div>
-        </div>
-        <div class="slide fade">
-          <div class="slide-content">
-            <img src="" alt="✨ Featured Flavor: Churro Crunch" class="slide-img-alt">
-          </div>
-        </div>
-        <div class="slide-dots">
-          <span class="dot active"></span>
-          <span class="dot"></span>
-          <span class="dot"></span>
-        </div>
+        <div class="slide-dots"></div>
       </div>
 
       <div class="next-event-banner">
         <h3>📍 Next Upcoming Market</h3>
-        <p><strong>Downtown Farmers Market</strong> — Saturday, Nov 7 | 9:00 AM - 2:00 PM</p>
+        <p>Loading next market event...</p>
       </div>
     </div>
 
@@ -103,9 +83,7 @@
       <h2>Upcoming Markets & Events</h2>
       <div class="next-event-banner" style="margin-bottom: 20px; text-align: left;">
         <h3>📍 Featured Upcoming Markets</h3>
-        <p><strong>1. Downtown Farmers Market</strong> — Saturday, Nov 7 | 9:00 AM - 2:00 PM</p>
-        <p><strong>2. Holiday Craft Bazaar</strong> — Saturday, Nov 14 | 10:00 AM - 4:00 PM</p>
-        <p><strong>3. Winter Artisan Showcase</strong> — Friday, Nov 20 | 2:00 PM - 8:00 PM</p>
+        <p>Loading featured markets...</p>
       </div>
       <div class="calendar-wrapper">
         <div class="calendar-controls">
@@ -113,7 +91,6 @@
           <span id="pk-month-label" class="calendar-month-title">November 2026</span>
           <button id="pk-next-month" class="demo-action-btn">Next Month &rarr;</button>
         </div>
-        <!-- Days of the week header row -->
         <div class="calendar-weekdays">
           <span>Sun</span>
           <span>Mon</span>
@@ -397,6 +374,8 @@
     </div>
   </footer>
 
+  <!-- Supabase CDN Script -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app.js"></script>
 </body>
 </html>
