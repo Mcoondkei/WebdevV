@@ -435,7 +435,7 @@ a {
 .slideshow-container img {
   width: 92% !important;
   height: auto !important;
-  max-height: 250px;
+  max-height: 350px;
   object-fit: cover;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
@@ -528,8 +528,8 @@ a {
 }
 
 .popkern-modal-box {
-  width: 80%;
-  height: 30%;
+  width: 90%;
+  height: 45%;
   background: #FFFFFF;
   border-radius: 12px;
   display: flex;
