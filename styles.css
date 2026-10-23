@@ -467,8 +467,8 @@ a {
 
 .slideshow-btn {
   position: absolute;
-  top: 50%;
-  transform: translateY(-15%);
+  top: 55%;
+  transform: translateY(-50%);
   background-color: rgba(217, 119, 6, 0.2);
   color: #D97706;
   border: none;
