@@ -228,16 +228,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ==========================================
   // SHARED FLAVORS & POPKERN_IMAGES BUCKET DATA
   // ==========================================
-  const fallbackFlavors = [
-    { name: 'Apple Cinnamon', description: 'Crisp apple flavor infused with warm aromatic cinnamon glaze.', image_filename: 'apple-cinnamon.jpg', is_featured: true },
-    { name: 'Cheddar Jalapeno', description: 'Sharp cheddar cheese blended with a fiery jalapeno kick.', image_filename: 'cheddar-jalapeno.jpg', is_featured: true },
-    { name: 'Churro', description: 'Sweet cinnamon sugar coating layered over buttery kettle corn.', image_filename: 'churro.jpg', is_featured: true },
-    { name: 'Chocolate', description: 'Rich dark chocolate drizzle over crisp caramelized popcorn.', image_filename: 'chocolate.jpg', is_featured: false },
-    { name: 'Cheddar', description: 'Classic real Wisconsin cheddar cheese coating.', image_filename: 'cheddar.jpg', is_featured: false },
-    { name: 'Dill Pickle', description: 'Tangy, savory dill pickle seasoning with garlic hints.', image_filename: 'dill-pickle.jpg', is_featured: false }
-  ];
-
-  let sharedFlavors = fallbackFlavors;
+  let sharedFlavors = [];
 
   if (supabaseClient) {
     try {
