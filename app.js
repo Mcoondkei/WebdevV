@@ -31,6 +31,10 @@ const STORAGE_URL = {
 
 const SLIDE_INTERVAL_MS = 5000;
 
+// Column in `deckcard_inventory` that holds how many of an item are in stock.
+// Change this if your column has a different name.
+const DECKCARD_STOCK_COLUMN = 'stock_quantity';
+
 
 /* ==========================================================================
    2. STATIC DATA
@@ -190,6 +194,15 @@ function loadLogos() {
 
 /* ---- 5.2 Demo switcher (the Popkern / 3Dream / Deckcard / Dentra bar) ---- */
 
+// Puts a demo back on its Home page (menus closed, Home highlighted).
+function resetDemoToHome(wrapper) {
+  closePopkernDropdown();
+  closeThreeDreamDropdown();
+
+  const homeLink = wrapper.querySelector('a[data-page="home"]');
+  if (homeLink) homeLink.click();   // reuses the normal sub-page navigation
+}
+
 function setupDemoSwitcher() {
   const buttons = document.querySelectorAll('.demo-btn');
   const wrappers = document.querySelectorAll('.demo-wrapper');
@@ -202,7 +215,11 @@ function setupDemoSwitcher() {
 
       btn.classList.add('active');
       const activeWrapper = byId(`demo-${btn.getAttribute('data-target')}`);
-      if (activeWrapper) activeWrapper.classList.add('active-demo');
+      if (activeWrapper) {
+        activeWrapper.classList.add('active-demo');
+        resetDemoToHome(activeWrapper);
+      }
+      window.scrollTo(0, 0);
     });
   });
 
@@ -228,7 +245,7 @@ function setupSubpageNav(navSelector, pageClass) {
       demo.querySelectorAll(`.${pageClass}`).forEach(p => p.classList.remove('active-subpage'));
 
       const activeLink = demo.querySelector(
-        `nav a[data-page="${pageId}"], .pk-dropdown-content a[data-page="${pageId}"]`
+        `nav a[data-page="${pageId}"], .pk-dropdown-content a[data-page="${pageId}"], .td-dropdown-content a[data-page="${pageId}"]`
       );
       if (activeLink) activeLink.classList.add('active');
 
@@ -263,17 +280,205 @@ function setupModalDismissal() {
 }
 
 
-/* ---- 5.5 Generic item modal + cart counters (3Dream & Deckcard) --------- */
+/* ---- 5.5 Item modal + shopping cart (3Dream & Deckcard) ----------------- */
 
+// One cart per demo. Each entry: { name, price (number|null), qty }
 const cart = {
-  activeType: null,                       // which demo opened the modal
-  counts: { '3dream': 0, deckcard: 0 },
-  badgeSelector: { '3dream': '.td-cart-count', deckcard: '.dc-cart-count' }
+  activeItem: null,   // item currently open in the modal: { name, price, cartType }
+  items: { '3dream': [], deckcard: [] },
+  ui: {
+    '3dream':  { badge: '.td-cart-count', list: 'td-cart-items-container', checkoutBtn: 'td-checkout-btn', checkoutSection: 'td-checkout-section' },
+    deckcard:  { badge: '.dc-cart-count', list: 'dc-cart-items-container', checkoutBtn: 'dc-checkout-btn', checkoutSection: 'dc-checkout-section' }
+  }
 };
 
-// Opens the shared item modal. imageUrl and price are optional.
-function openItemModal({ name, description, cartType, imageUrl = null, price = '' }) {
-  cart.activeType = cartType;
+// ---- Cart state ----
+
+// stock = how many exist (number), or null when the item has no limit.
+function addToCart(type, { name, price, stock = null }, qty = 1) {
+  const lines = cart.items[type];
+  const existing = lines.find(line => line.name === name);
+  const cap = stock === null ? Infinity : stock;
+
+  if (existing) existing.qty = Math.min(existing.qty + qty, cap);
+  else lines.push({ name, price, stock, qty: Math.min(qty, cap) });
+  renderCart(type);
+}
+
+function getQtyInCart(type, name) {
+  const line = cart.items[type].find(l => l.name === name);
+  return line ? line.qty : 0;
+}
+
+// How many more of this item can be added right now (respects stock + cart).
+function getMaxAddable(type, name, stock) {
+  if (stock === null) return MAX_ITEM_QTY;
+  return Math.max(0, Math.min(MAX_ITEM_QTY, stock - getQtyInCart(type, name)));
+}
+
+// Database value -> whole number of units in stock, or null if unknown / no limit.
+function toStock(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const n = Math.floor(Number(value));
+  return Number.isFinite(n) ? Math.max(0, n) : null;
+}
+
+function changeCartQty(type, name, delta) {
+  const lines = cart.items[type];
+  const line = lines.find(l => l.name === name);
+  if (!line) return;
+  if (delta > 0 && line.stock !== null && line.qty + delta > line.stock) return;
+
+  line.qty += delta;
+  if (line.qty <= 0) removeFromCart(type, name);
+  else renderCart(type);
+}
+
+function removeFromCart(type, name) {
+  cart.items[type] = cart.items[type].filter(line => line.name !== name);
+  renderCart(type);
+}
+
+function getCartCount(type) {
+  return cart.items[type].reduce((sum, line) => sum + line.qty, 0);
+}
+
+function getCartTotal(type) {
+  return cart.items[type].reduce((sum, line) => sum + (Number(line.price) || 0) * line.qty, 0);
+}
+
+// ---- Cart rendering ----
+
+function createQtyButton(label, ariaLabel, onClick) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'cart-qty-btn';
+  btn.textContent = label;
+  btn.setAttribute('aria-label', ariaLabel);
+  btn.addEventListener('click', onClick);
+  return btn;
+}
+
+function createCartRow(type, line) {
+  const row = document.createElement('div');
+  row.className = 'cart-row';
+
+  const info = document.createElement('div');
+  info.className = 'cart-row-info';
+  const name = document.createElement('div');
+  name.className = 'cart-row-name';
+  name.textContent = line.name;
+  const unit = document.createElement('div');
+  unit.className = 'cart-row-unit';
+  unit.textContent = line.price != null ? `${formatPrice(line.price)} each` : '';
+  info.append(name, unit);
+
+  const qty = document.createElement('div');
+  qty.className = 'cart-qty';
+  const qtyValue = document.createElement('span');
+  qtyValue.textContent = line.qty;
+  const minusBtn = createQtyButton('−', `Decrease quantity of ${line.name}`, () => changeCartQty(type, line.name, -1));
+  const plusBtn  = createQtyButton('+', `Increase quantity of ${line.name}`, () => changeCartQty(type, line.name, 1));
+  if (line.stock !== null && line.qty >= line.stock) {
+    plusBtn.disabled = true;
+    plusBtn.title = 'No more in stock';
+  }
+  qty.append(minusBtn, qtyValue, plusBtn);
+
+  const lineTotal = document.createElement('div');
+  lineTotal.className = 'cart-row-total';
+  lineTotal.textContent = formatPrice((Number(line.price) || 0) * line.qty);
+
+  const remove = document.createElement('button');
+  remove.type = 'button';
+  remove.className = 'cart-remove-btn';
+  remove.textContent = 'Remove';
+  remove.setAttribute('aria-label', `Remove ${line.name} from cart`);
+  remove.addEventListener('click', () => removeFromCart(type, line.name));
+
+  row.append(info, qty, lineTotal, remove);
+  return row;
+}
+
+// Redraws one demo's cart list, the menu badge, and the checkout button.
+function renderCart(type) {
+  const ui = cart.ui[type];
+  const lines = cart.items[type];
+  const list = byId(ui.list);
+  const checkoutBtn = byId(ui.checkoutBtn);
+  const checkoutSection = byId(ui.checkoutSection);
+
+  document.querySelectorAll(ui.badge).forEach(badge => { badge.textContent = getCartCount(type); });
+  if (!list) return;
+
+  list.innerHTML = '';
+
+  if (lines.length === 0) {
+    list.appendChild(createEmptyMessage('Your cart is empty.'));
+    if (checkoutBtn) checkoutBtn.hidden = true;
+    if (checkoutSection) checkoutSection.hidden = true;
+    return;
+  }
+
+  lines.forEach(line => list.appendChild(createCartRow(type, line)));
+
+  const total = document.createElement('div');
+  total.className = 'cart-total';
+  total.textContent = `Total: ${formatPrice(getCartTotal(type))}`;
+  list.appendChild(total);
+
+  // Show the Checkout button unless the checkout area is already open.
+  if (checkoutBtn) checkoutBtn.hidden = !!(checkoutSection && !checkoutSection.hidden);
+}
+
+// ---- Item modal ----
+
+const MAX_ITEM_QTY = 99;
+
+// Highest quantity the popup currently allows (stock- and cart-aware).
+function getModalMax() {
+  return cart.activeItem ? Math.max(cart.activeItem.maxQty, 1) : MAX_ITEM_QTY;
+}
+
+// Quantity box value as a whole number between 1 and the modal's max.
+function readModalQty() {
+  const value = parseInt(byId('gen-modal-qty').value, 10);
+  if (!Number.isFinite(value) || value < 1) return 1;
+  return Math.min(value, getModalMax());
+}
+
+function setModalQty(value) {
+  byId('gen-modal-qty').value = Math.min(Math.max(value, 1), getModalMax());
+}
+
+// "5 available" / "Out of stock" note, plus disabling the controls when nothing can be added.
+function updateModalStock(item) {
+  const note = byId('gen-modal-stock');
+  const soldOut = item.maxQty < 1;
+
+  if (note) {
+    if (item.stock === null) {
+      note.hidden = true;
+    } else {
+      note.hidden = false;
+      note.textContent = item.stock === 0
+        ? 'Out of stock'
+        : soldOut
+          ? 'All available stock is already in your cart'
+          : `${item.maxQty} available`;
+    }
+  }
+
+  ['gen-modal-qty', 'gen-modal-qty-minus', 'gen-modal-qty-plus', 'gen-modal-add']
+    .forEach(id => { byId(id).disabled = soldOut; });
+}
+
+// Opens the shared item modal. imageUrl, price (a number) and stock (a number, or null = unlimited) are optional.
+function openItemModal({ name, description, cartType, imageUrl = null, price = null, stock = null }) {
+  const maxQty = getMaxAddable(cartType, name, stock);
+  cart.activeItem = { name, price, cartType, stock, maxQty };
+  updateModalStock(cart.activeItem);
+  setModalQty(1);
 
   const imageBox = byId('gen-modal-img');
   imageBox.textContent = '';
@@ -288,10 +493,11 @@ function openItemModal({ name, description, cartType, imageUrl = null, price = '
     imageBox.textContent = `[ALT Image: ${name}]`;
   }
 
+  const priceText = formatPrice(price);
   const priceEl = byId('gen-modal-price');
   if (priceEl) {
-    priceEl.textContent = price;
-    priceEl.hidden = !price;
+    priceEl.textContent = priceText;
+    priceEl.hidden = !priceText;
   }
 
   byId('gen-modal-title').textContent = name;
@@ -299,25 +505,83 @@ function openItemModal({ name, description, cartType, imageUrl = null, price = '
   byId('generic-item-modal').classList.remove('hidden');
 }
 
+// ---- "Added to cart" message (shows for 2 seconds where the Add button was) ----
+
+const ADDED_MESSAGE_MS = 2000;
+let addedMessageTimer = null;
+
+// anchorRect = the Add button's on-screen box; the message is centred on it
+// (and kept inside the window).
+function showAddedMessage(text, anchorRect) {
+  const toast = byId('cart-toast');
+  if (!toast) return;
+
+  clearTimeout(addedMessageTimer);
+  toast.textContent = text;
+  toast.hidden = false;
+
+  const margin = 8;
+  const halfW = toast.offsetWidth / 2;
+  const halfH = toast.offsetHeight / 2;
+  const x = anchorRect.left + anchorRect.width / 2;
+  const y = anchorRect.top + anchorRect.height / 2;
+  const clamp = (value, min, max) => Math.min(Math.max(value, min), Math.max(min, max));
+
+  toast.style.left = `${clamp(x, halfW + margin, window.innerWidth - halfW - margin)}px`;
+  toast.style.top  = `${clamp(y, halfH + margin, window.innerHeight - halfH - margin)}px`;
+
+  addedMessageTimer = setTimeout(() => { toast.hidden = true; }, ADDED_MESSAGE_MS);
+}
+
 function setupItemModal() {
   const modal = byId('generic-item-modal');
   const addBtn = byId('gen-modal-add');
   const closeBtn = byId('gen-modal-close');
+  const qtyInput = byId('gen-modal-qty');
 
   if (closeBtn) closeBtn.addEventListener('click', () => modal.classList.add('hidden'));
 
+  // Quantity box: − / + buttons, digits only, clamped to 1..MAX_ITEM_QTY
+  byId('gen-modal-qty-minus').addEventListener('click', () => setModalQty(readModalQty() - 1));
+  byId('gen-modal-qty-plus').addEventListener('click',  () => setModalQty(readModalQty() + 1));
+  qtyInput.addEventListener('input', () => {
+    qtyInput.value = qtyInput.value.replace(/\D/g, '');
+  });
+  qtyInput.addEventListener('blur', () => setModalQty(readModalQty()));
+  qtyInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') addBtn.click();
+  });
+
+
   if (addBtn) {
     addBtn.addEventListener('click', () => {
-      const type = cart.activeType;
-      if (type in cart.counts) {
-        cart.counts[type]++;
-        document.querySelectorAll(cart.badgeSelector[type])
-          .forEach(badge => { badge.textContent = cart.counts[type]; });
-      }
+      const item = cart.activeItem;
+      if (!item || !(item.cartType in cart.items)) return;
+
+      const qty = readModalQty();
+      addToCart(item.cartType, item, qty);
+
+      // Measure the button while the popup is still visible, then close it.
+      const buttonRect = addBtn.getBoundingClientRect();
       modal.classList.add('hidden');
-      alert('Item added to cart!');
+      showAddedMessage(`${qty} of ${item.name} has been added to the cart!`, buttonRect);
     });
   }
+}
+
+// ---- Checkout reveal ----
+
+// Cart page: the Checkout button reveals the checkout area beneath the cart list.
+function setupCheckoutReveal(buttonId, sectionId) {
+  const button = byId(buttonId);
+  const section = byId(sectionId);
+  if (!button || !section) return;
+
+  button.addEventListener('click', () => {
+    section.hidden = false;
+    button.hidden = true;
+    section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
 }
 
 
@@ -773,7 +1037,7 @@ function createThreeDreamCard(item) {
     description: item.description || 'No description available.',
     cartType: '3dream',
     imageUrl,
-    price
+    price: item.price
   }));
   return card;
 }
@@ -819,7 +1083,10 @@ function createDeckcardItemCard(item) {
     openItemModal({
       name: item.name,
       description: item.description || item.desc || 'No description available.',
-      cartType: 'deckcard'
+      cartType: 'deckcard',
+      imageUrl,
+      price: item.price,
+      stock: toStock(item[DECKCARD_STOCK_COLUMN])
     });
   });
   return card;
@@ -916,6 +1183,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupAllSubpageNavs();
   setupModalDismissal();
   setupItemModal();
+  setupCheckoutReveal('td-checkout-btn', 'td-checkout-section');
+  setupCheckoutReveal('dc-checkout-btn', 'dc-checkout-section');
+  renderCart('3dream');
+  renderCart('deckcard');
 
   setupPopkernMenu();
   setupThreeDreamMenu();

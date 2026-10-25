@@ -408,6 +408,91 @@ a {
   border: 1px solid #CCC;
 }
 
+/* Cart list (3Dream + Deckcard) */
+.cart-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.35);
+}
+
+.cart-row-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.cart-row-name {
+  font-weight: 600;
+}
+
+.cart-row-unit {
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+.cart-qty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cart-qty-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(128, 128, 128, 0.3);
+  color: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.cart-qty-btn:hover {
+  background: rgba(128, 128, 128, 0.5);
+}
+
+.cart-qty-btn:disabled,
+.modal-qty-input:disabled,
+.modal-actions-stacked button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.cart-row-total {
+  min-width: 70px;
+  text-align: right;
+  font-weight: 700;
+}
+
+.cart-remove-btn {
+  background: none;
+  border: none;
+  color: inherit;
+  opacity: 0.7;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.cart-remove-btn:hover {
+  opacity: 1;
+}
+
+.cart-total {
+  text-align: right;
+  font-size: 1.2rem;
+  font-weight: 700;
+  padding: 16px 0;
+}
+
+/* Checkout area revealed under the cart list (3Dream + Deckcard) */
+.checkout-section {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(128, 128, 128, 0.35);
+}
+
 /* ---- 5.3 Image placeholder (shown when an item image fails to load) ----- */
 
 .item-img-alt {
@@ -522,6 +607,65 @@ a {
 .modal-price {
   font-weight: 700;
   margin-bottom: 8px;
+}
+
+.modal-stock {
+  font-size: 0.85rem;
+  color: #6B7280;
+  margin-bottom: 8px;
+}
+
+.cart-toast {
+  position: fixed;
+  top: 50%;                   /* app.js moves it over the Add to Cart button */
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1100;              /* above the modal overlay (1000) */
+  max-width: 90vw;
+  padding: 14px 22px;
+  text-align: center;
+  font-weight: 600;
+  color: #166534;
+  background: #DCFCE7;
+  border: 1px solid #86EFAC;
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.cart-toast[hidden] {
+  display: none;
+}
+
+.modal-qty {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.modal-qty-input {
+  width: 60px;
+  padding: 6px;
+  text-align: center;
+  font-size: 1rem;
+  border: 1px solid #CCC;
+  border-radius: 4px;
+}
+
+/* Buttons stacked vertically: Add to Cart on top, Close underneath */
+.modal-actions-stacked {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.modal-actions-stacked button {
+  width: 100%;
+  max-width: 240px;
+  margin: 0;
+  padding: 10px 16px;
 }
 
 .close-x-btn {
@@ -809,7 +953,8 @@ a {
 
 .threedream-theme h1,
 .threedream-theme h2,
-.threedream-theme h3 {
+.threedream-theme h3,
+.threedream-theme h4 {
   color: #F8FAFC;
 }
 
