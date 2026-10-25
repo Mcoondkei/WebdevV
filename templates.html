@@ -8,7 +8,9 @@
 </head>
 <body class="main-site">
 
-  <!-- Main Agency Header -->
+  <!-- ============================================================
+       AGENCY HEADER & DEMO SWITCHER
+       ============================================================ -->
   <header class="main-header">
     <div class="container nav-container">
       <a href="index.html" class="logo-link">
@@ -23,7 +25,7 @@
     </div>
   </header>
 
-  <!-- Demo Switcher Sub-Navbar -->
+  <!-- Demo switcher bar -->
   <div class="demo-switcher-bar">
     <div class="container demo-switcher-container">
       <span class="switcher-label">Select Demo Site:</span>
@@ -34,7 +36,9 @@
     </div>
   </div>
 
-  <!-- DEMO CONTAINER: POPKERN -->
+<!-- ============================================================
+       DEMO 1: POPKERN (Kettle Popcorn)  ·  prefix: pk- / popkern-
+       ============================================================ -->
   <div id="demo-popkern" class="demo-wrapper popkern-theme active-demo">
     <header class="demo-header pk-custom-header">
       <div class="pk-header-spacer"></div>
@@ -112,7 +116,9 @@
     </div>
   </div>
 
-  <!-- DEMO CONTAINER: 3DREAM -->
+<!-- ============================================================
+       DEMO 2: 3DREAM (3D Printing)  ·  prefix: td-
+       ============================================================ -->
   <div id="demo-threedream" class="demo-wrapper threedream-theme">
     <header class="demo-header td-custom-header">
       <div class="demo-brand">
@@ -136,6 +142,7 @@
       </div>
     </header>
 
+    <!-- 3Dream: Home -->
     <div id="td-home" class="td-page active-subpage">
       <div class="td-hero">
         <h1>Precision 3D Printing & Design</h1>
@@ -147,16 +154,19 @@
       </div>
     </div>
 
+    <!-- 3Dream: Items -->
     <div id="td-items" class="td-page">
       <h2>Items for Sale</h2>
       <div class="grid grid-3" id="td-items-grid"></div>
     </div>
 
+    <!-- 3Dream: Cart -->
     <div id="td-cart" class="td-page">
       <h2>Shopping Cart</h2>
       <div id="td-cart-items-container"></div>
     </div>
 
+    <!-- 3Dream: Checkout -->
     <div id="td-checkout" class="td-page">
       <h2>Checkout</h2>
       <form class="demo-form" onsubmit="event.preventDefault(); alert('Order placed! (Demo)');">
@@ -168,6 +178,7 @@
       </form>
     </div>
 
+    <!-- 3Dream: Business Inquiries -->
     <div id="td-inquiries" class="td-page">
       <h2>Business Inquiries</h2>
       <form class="demo-form" onsubmit="event.preventDefault(); alert('Inquiry sent!');">
@@ -180,7 +191,9 @@
     </div>
   </div>
 
-  <!-- DEMO CONTAINER: DECKCARD -->
+<!-- ============================================================
+       DEMO 3: DECKCARD (Card Shop)  ·  prefix: dc-
+       ============================================================ -->
   <div id="demo-deckcard" class="demo-wrapper deckcard-theme">
     <header class="demo-header">
       <div class="demo-brand">
@@ -199,6 +212,7 @@
       </nav>
     </header>
 
+    <!-- Deckcard: Home -->
     <div id="dc-home" class="dc-page active-subpage">
       <div class="dc-hero">
         <h1>Your Local Trading Card & Tournament Hub</h1>
@@ -206,6 +220,7 @@
       </div>
     </div>
 
+    <!-- Deckcard: Events (calendar) -->
     <div id="dc-events" class="dc-page">
       <h2>Tournaments & Events</h2>
       <div class="calendar-wrapper">
@@ -227,21 +242,25 @@
       </div>
     </div>
 
+    <!-- Deckcard: Items -->
     <div id="dc-items" class="dc-page">
       <h2>Trading Cards & Packs</h2>
       <div class="grid grid-5" id="dc-items-grid"></div>
     </div>
 
+    <!-- Deckcard: Cart -->
     <div id="dc-cart" class="dc-page">
       <h2>Your Cart</h2>
       <div id="dc-cart-items-container"></div>
     </div>
 
+    <!-- Deckcard: Checkout -->
     <div id="dc-checkout" class="dc-page">
       <h2>Complete Purchase</h2>
       <button class="demo-action-btn" onclick="alert('Order processed successfully!')">Submit Payment</button>
     </div>
 
+    <!-- Deckcard: Account -->
     <div id="dc-account" class="dc-page">
       <h2>Member Account</h2>
       <div class="dc-tabs">
@@ -260,7 +279,9 @@
     </div>
   </div>
 
-  <!-- DEMO CONTAINER: DENTRA -->
+<!-- ============================================================
+       DEMO 4: DENTRA (Dental Office)  ·  prefix: dt-
+       ============================================================ -->
   <div id="demo-dentra" class="demo-wrapper dentra-theme">
     <header class="demo-header">
       <div class="demo-brand">
@@ -276,6 +297,7 @@
       </nav>
     </header>
 
+    <!-- Dentra: Home -->
     <div id="dt-home" class="dt-page active-subpage">
       <div class="dt-hero">
         <h1>Gentle, Comprehensive Dental Care</h1>
@@ -284,6 +306,7 @@
       </div>
     </div>
 
+    <!-- Dentra: Services -->
     <div id="dt-services" class="dt-page">
       <h2>Our Services</h2>
       <div class="grid grid-3">
@@ -302,6 +325,7 @@
       </div>
     </div>
 
+    <!-- Dentra: Schedule -->
     <div id="dt-schedule" class="dt-page">
       <h2>Schedule an Appointment</h2>
       <form class="demo-form" onsubmit="event.preventDefault(); alert('Appointment requested! We will call to confirm.');">
@@ -320,6 +344,7 @@
       </form>
     </div>
 
+    <!-- Dentra: Contact -->
     <div id="dt-contact" class="dt-page">
       <h2>Contact Our Office</h2>
       <div class="grid grid-2">
@@ -341,7 +366,11 @@
     </div>
   </div>
 
-  <!-- POPKERN MODAL -->
+<!-- ============================================================
+       MODALS (shared overlays, toggled by app.js)
+       ============================================================ -->
+
+  <!-- Popkern: flavor detail -->
   <div id="popkern-modal" class="frosted-modal-overlay hidden">
     <div class="popkern-modal-box">
       <div class="pk-modal-left" id="pk-modal-img">IMG</div>
@@ -355,11 +384,23 @@
     </div>
   </div>
 
-  <!-- GENERIC ITEM MODAL -->
+  <!-- Deckcard: calendar event detail -->
+  <div id="deckcard-event-modal" class="frosted-modal-overlay hidden">
+    <div class="generic-modal-box">
+      <h3 id="dc-event-modal-title">Events</h3>
+      <div id="dc-event-modal-body" style="text-align: left; margin: 15px 0;"></div>
+      <div class="modal-actions">
+        <button id="dc-event-modal-close" class="demo-secondary-btn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3Dream + Deckcard: item detail / add to cart -->
   <div id="generic-item-modal" class="frosted-modal-overlay hidden">
     <div class="generic-modal-box">
       <div class="modal-img-placeholder" id="gen-modal-img">Image Placeholder</div>
       <h3 id="gen-modal-title">Item Name</h3>
+      <p id="gen-modal-price" class="modal-price" hidden></p>
       <p id="gen-modal-desc">Item description text.</p>
       <div class="modal-actions">
         <button id="gen-modal-add" class="demo-action-btn">Add to Cart</button>
@@ -368,13 +409,16 @@
     </div>
   </div>
 
+  <!-- ============================================================
+       FOOTER & SCRIPTS
+       ============================================================ -->
   <footer class="main-footer">
     <div class="container footer-content">
       <p>&copy; 2026 WebdevV. All rights reserved.</p>
     </div>
   </footer>
 
-  <!-- Supabase CDN Script -->
+  <!-- Supabase client (must load before app.js) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app.js"></script>
 </body>
