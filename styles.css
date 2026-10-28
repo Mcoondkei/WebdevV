@@ -493,6 +493,239 @@ a {
   border-top: 1px solid rgba(128, 128, 128, 0.35);
 }
 
+/* ---- Checkout wizard (3Dream + Deckcard) -------------------------------- */
+
+/* Buttons */
+.checkout-primary-btn {
+  background: var(--accent, #DC2626);
+  color: var(--accent-contrast, #FFFFFF);
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.checkout-primary-btn:hover {
+  filter: brightness(1.1);
+}
+
+.checkout-primary-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.checkout-link-btn {
+  background: none;
+  border: none;
+  color: var(--accent, #DC2626);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+/* Progress bar */
+.checkout-steps {
+  list-style: none;
+  display: flex;
+  gap: 8px;
+  margin: 12px 0 20px;
+  padding: 0;
+}
+
+.checkout-step {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 3px solid rgba(128, 128, 128, 0.35);
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+.checkout-step.is-active,
+.checkout-step.is-done {
+  border-bottom-color: var(--accent, #DC2626);
+  opacity: 1;
+}
+
+.checkout-step-num {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: 700;
+  background: rgba(128, 128, 128, 0.35);
+}
+
+.checkout-step.is-active .checkout-step-num,
+.checkout-step.is-done .checkout-step-num {
+  background: var(--accent, #DC2626);
+  color: var(--accent-contrast, #FFFFFF);
+}
+
+@media (max-width: 550px) {
+  .checkout-step-label { display: none; }
+  .checkout-step.is-active .checkout-step-label { display: inline; }
+}
+
+/* Step panels + form layout */
+.checkout-panel h4 {
+  margin-bottom: 8px;
+}
+
+.checkout-row {
+  display: flex;
+  gap: 12px;
+}
+
+.checkout-row label {
+  flex: 1;
+}
+
+/* Delivery choices */
+.checkout-panel .checkout-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  margin-top: 10px;
+  font-weight: 400;
+  border: 1px solid rgba(128, 128, 128, 0.5);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.checkout-panel .checkout-choice.is-selected {
+  border-color: var(--accent, #DC2626);
+  background: rgba(128, 128, 128, 0.12);
+}
+
+.checkout-panel .checkout-choice input {
+  width: auto;
+  margin: 4px 0 0;
+}
+
+/* Review */
+.checkout-review-block {
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.35);
+}
+
+.checkout-review-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.checkout-text-lines {
+  font-size: 0.95rem;
+  opacity: 0.9;
+}
+
+.checkout-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 3px 0;
+}
+
+.checkout-line-sub {
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+.checkout-line-total {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(128, 128, 128, 0.35);
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+/* Pay */
+.checkout-methods {
+  display: flex;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.checkout-method {
+  flex: 1;
+  padding: 10px 16px;
+  background: transparent;
+  color: inherit;
+  border: 1px solid rgba(128, 128, 128, 0.5);
+  border-radius: 6px;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.checkout-method.is-selected {
+  border-color: var(--accent, #DC2626);
+  background: rgba(128, 128, 128, 0.15);
+  font-weight: 700;
+}
+
+.checkout-pay-btn {
+  width: 100%;
+  margin-top: 16px;
+}
+
+.checkout-demo-note {
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.checkout-error {
+  margin-top: 12px;
+  color: #F87171;
+  font-weight: 600;
+}
+
+.checkout-error[hidden] {
+  display: none;
+}
+
+/* Back / Continue */
+.checkout-nav {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+.checkout-nav [hidden] {
+  display: none;
+}
+
+/* Order confirmation (shown on the cart page after a demo order) */
+.order-confirmation {
+  margin-bottom: 20px;
+  padding: 20px;
+  border: 1px solid var(--accent, #DC2626);
+  border-radius: 8px;
+  background: rgba(128, 128, 128, 0.1);
+}
+
+.order-confirmation[hidden] {
+  display: none;
+}
+
+.order-confirmation-id {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.order-confirmation .checkout-primary-btn {
+  margin-top: 16px;
+}
+
 /* ---- 5.3 Image placeholder (shown when an item image fails to load) ----- */
 
 .item-img-alt {
@@ -615,7 +848,7 @@ a {
   margin-bottom: 8px;
 }
 
-.cart-toast {
+.toast {
   position: fixed;
   top: 50%;                   /* app.js moves it over the Add to Cart button */
   left: 50%;
@@ -632,8 +865,15 @@ a {
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
 }
 
-.cart-toast[hidden] {
+.toast[hidden] {
   display: none;
+}
+
+/* Error variant (e.g. an empty form field) */
+.toast.is-error {
+  color: #991B1B;
+  background: #FEE2E2;
+  border-color: #FCA5A5;
 }
 
 .modal-qty {
@@ -944,6 +1184,8 @@ a {
 .threedream-theme {
   background-color: #0F172A;
   color: #E2E8F0;
+  --accent: #38BDF8;
+  --accent-contrast: #0F172A;
 }
 
 .threedream-theme .demo-brand,
@@ -1094,6 +1336,8 @@ a {
 .deckcard-theme {
   background-color: #18181B;
   color: #F4F4F5;
+  --accent: #A855F7;
+  --accent-contrast: #FFFFFF;
 }
 
 .deckcard-theme .demo-brand,
@@ -1103,7 +1347,8 @@ a {
 
 .deckcard-theme h1,
 .deckcard-theme h2,
-.deckcard-theme h3 {
+.deckcard-theme h3,
+.deckcard-theme h4 {
   color: #FFFFFF;
 }
 

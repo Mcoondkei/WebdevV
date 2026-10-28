@@ -7,7 +7,7 @@
      3. Supabase client & data layer . every network call lives here
      4. Small helpers ................ DOM + URL helpers used everywhere
      5. Shared UI .................... logos, demo switcher, sub-page nav,
-                                       modals, item modal + cart, calendar
+                                       modals, item modal + cart, checkout wizard, calendar
      6. Popkern demo ................. menu, event banners, slideshow, flavors
      7. 3Dream demo .................. menu, search, catalog grid
      8. Deckcard demo ................ inventory grid, tabs, login, calendar
@@ -34,6 +34,14 @@ const SLIDE_INTERVAL_MS = 5000;
 // Column in `deckcard_inventory` that holds how many of an item are in stock.
 // Change this if your column has a different name.
 const DECKCARD_STOCK_COLUMN = 'stock_quantity';
+
+// Checkout (3Dream + Deckcard)
+// PAYMENTS_DEMO_MODE = true  -> the Pay step only SIMULATES a payment: no money moves,
+//                               nothing is sent anywhere, and nothing is saved.
+// To go live, connect real Stripe / PayPal code in processCardPayment() and
+// processPayPalPayment() (section 5.6), then set this to false.
+const PAYMENTS_DEMO_MODE = true;
+const SHIPPING_FEE = 5.99;   // demo flat rate; local pickup is free
 
 
 /* ==========================================================================
@@ -119,6 +127,16 @@ const loadThreeDreamItems   = () => loadTable('threedream_items',   'name');
 
 const byId = id => document.getElementById(id);
 
+// Creates an element with optional class and text (text is inserted safely as text).
+function createEl(tag, className = '', text = '') {
+  const element = document.createElement(tag);
+  if (className) element.className = className;
+  if (text) element.textContent = text;
+  return element;
+}
+
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
 // Small "nothing here" note appended to a container (grid, calendar, ...).
 function createEmptyMessage(text) {
   const p = document.createElement('p');
@@ -198,6 +216,8 @@ function loadLogos() {
 function resetDemoToHome(wrapper) {
   closePopkernDropdown();
   closeThreeDreamDropdown();
+  hideOrderConfirmation('3dream');
+  hideOrderConfirmation('deckcard');
 
   const homeLink = wrapper.querySelector('a[data-page="home"]');
   if (homeLink) homeLink.click();   // reuses the normal sub-page navigation
@@ -234,6 +254,11 @@ function setupDemoSwitcher() {
 
 /* ---- 5.3 Sub-page navigation inside each demo --------------------------- */
 
+// Code that runs each time a sub-page is opened (keyed by the page's element id).
+const pageEnterHooks = {
+  'td-inquiries': () => resetInquiryForm()
+};
+
 function setupSubpageNav(navSelector, pageClass) {
   document.querySelectorAll(navSelector).forEach(link => {
     link.addEventListener('click', e => {
@@ -250,7 +275,11 @@ function setupSubpageNav(navSelector, pageClass) {
       if (activeLink) activeLink.classList.add('active');
 
       const targetPage = demo.querySelector(`[id$="-${pageId}"]`);
-      if (targetPage) targetPage.classList.add('active-subpage');
+      if (targetPage) {
+        targetPage.classList.add('active-subpage');
+        const onEnter = pageEnterHooks[targetPage.id];
+        if (onEnter) onEnter();
+      }
     });
   });
 }
@@ -287,8 +316,10 @@ const cart = {
   activeItem: null,   // item currently open in the modal: { name, price, cartType }
   items: { '3dream': [], deckcard: [] },
   ui: {
-    '3dream':  { badge: '.td-cart-count', list: 'td-cart-items-container', checkoutBtn: 'td-checkout-btn', checkoutSection: 'td-checkout-section' },
-    deckcard:  { badge: '.dc-cart-count', list: 'dc-cart-items-container', checkoutBtn: 'dc-checkout-btn', checkoutSection: 'dc-checkout-section' }
+    '3dream':  { badge: '.td-cart-count', list: 'td-cart-items-container', checkoutBtn: 'td-checkout-btn', checkoutSection: 'td-checkout-section',
+                 confirmation: 'td-order-confirmation', itemsLink: '.td-nav-link[data-page="items"]' },
+    deckcard:  { badge: '.dc-cart-count', list: 'dc-cart-items-container', checkoutBtn: 'dc-checkout-btn', checkoutSection: 'dc-checkout-section',
+                 confirmation: 'dc-order-confirmation', itemsLink: '.dc-nav-link[data-page="items"]' }
   }
 };
 
@@ -296,6 +327,7 @@ const cart = {
 
 // stock = how many exist (number), or null when the item has no limit.
 function addToCart(type, { name, price, stock = null }, qty = 1) {
+  hideOrderConfirmation(type);
   const lines = cart.items[type];
   const existing = lines.find(line => line.name === name);
   const cap = stock === null ? Infinity : stock;
@@ -429,6 +461,8 @@ function renderCart(type) {
 
   // Show the Checkout button unless the checkout area is already open.
   if (checkoutBtn) checkoutBtn.hidden = !!(checkoutSection && !checkoutSection.hidden);
+
+  refreshCheckout(type);   // keep an open Review / Pay step in sync with the cart
 }
 
 // ---- Item modal ----
@@ -505,32 +539,45 @@ function openItemModal({ name, description, cartType, imageUrl = null, price = n
   byId('generic-item-modal').classList.remove('hidden');
 }
 
-// ---- "Added to cart" message (shows for 2 seconds where the Add button was) ----
+// ---- Pop-up message (toast) ----------------------------------------------
+// Shows `text` near `anchorRect` (an element's getBoundingClientRect()) and hides it
+// after `duration` ms. Options:
+//   variant:  'success' (green, default) or 'error' (red)
+//   above:    true = sit just above the anchor instead of centred on it
+//   duration: how long it stays, in ms (default 2000)
 
-const ADDED_MESSAGE_MS = 2000;
-let addedMessageTimer = null;
+let toastTimer = null;
 
-// anchorRect = the Add button's on-screen box; the message is centred on it
-// (and kept inside the window).
-function showAddedMessage(text, anchorRect) {
-  const toast = byId('cart-toast');
+function hideToast() {
+  clearTimeout(toastTimer);
+  const toast = byId('toast');
+  if (toast) toast.hidden = true;
+}
+
+function showToast(text, anchorRect, { variant = 'success', above = false, duration = 2000 } = {}) {
+  const toast = byId('toast');
   if (!toast) return;
 
-  clearTimeout(addedMessageTimer);
+  clearTimeout(toastTimer);
   toast.textContent = text;
+  toast.classList.toggle('is-error', variant === 'error');
   toast.hidden = false;
 
   const margin = 8;
   const halfW = toast.offsetWidth / 2;
   const halfH = toast.offsetHeight / 2;
   const x = anchorRect.left + anchorRect.width / 2;
-  const y = anchorRect.top + anchorRect.height / 2;
+  let y = anchorRect.top + anchorRect.height / 2;
+  if (above) {
+    y = anchorRect.top - halfH - margin;
+    if (y - halfH < margin) y = anchorRect.bottom + halfH + margin;   // no room above: go below
+  }
   const clamp = (value, min, max) => Math.min(Math.max(value, min), Math.max(min, max));
 
   toast.style.left = `${clamp(x, halfW + margin, window.innerWidth - halfW - margin)}px`;
   toast.style.top  = `${clamp(y, halfH + margin, window.innerHeight - halfH - margin)}px`;
 
-  addedMessageTimer = setTimeout(() => { toast.hidden = true; }, ADDED_MESSAGE_MS);
+  toastTimer = setTimeout(() => { toast.hidden = true; }, duration);
 }
 
 function setupItemModal() {
@@ -564,20 +611,418 @@ function setupItemModal() {
       // Measure the button while the popup is still visible, then close it.
       const buttonRect = addBtn.getBoundingClientRect();
       modal.classList.add('hidden');
-      showAddedMessage(`${qty} of ${item.name} has been added to the cart!`, buttonRect);
+      showToast(`${qty} of ${item.name} has been added to the cart!`, buttonRect);
     });
   }
 }
 
-// ---- Checkout reveal ----
+/* ---- 5.6 Checkout wizard (3Dream & Deckcard) ---------------------------- */
 
-// Cart page: the Checkout button reveals the checkout area beneath the cart list.
-function setupCheckoutReveal(buttonId, sectionId) {
-  const button = byId(buttonId);
-  const section = byId(sectionId);
+// Contact -> Delivery -> Review -> Pay.  The Pay step is a DEMO (see PAYMENTS_DEMO_MODE):
+// card details typed into the demo form are never read, sent, or stored.
+
+const CHECKOUT_STEPS = ['Contact', 'Delivery', 'Review', 'Pay'];
+
+const checkout = {
+  '3dream':  { root: null, step: 1, delivery: 'pickup', payMethod: 'card' },
+  deckcard:  { root: null, step: 1, delivery: 'pickup', payMethod: 'card' }
+};
+
+// ---- Payment providers (PLACEHOLDERS) ----
+// Demo mode pretends the payment succeeded. For real payments, replace the body of each
+// function: call your server (e.g. a Supabase Edge Function) that talks to Stripe / PayPal,
+// then return { orderId } once the payment is confirmed. Throw an Error to show a message.
+
+async function processCardPayment(order) {
+  if (!PAYMENTS_DEMO_MODE) throw new Error('Card payments are not connected yet.');
+  await wait(900);
+  return { orderId: createDemoOrderId() };
+}
+
+async function processPayPalPayment(order) {
+  if (!PAYMENTS_DEMO_MODE) throw new Error('PayPal payments are not connected yet.');
+  await wait(900);
+  return { orderId: createDemoOrderId() };
+}
+
+function createDemoOrderId() {
+  return `DEMO-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+}
+
+// ---- Markup ----
+
+// `type` makes the radio group name unique: same-named radios on one page act as ONE group.
+function checkoutTemplate(type) {
+  return `
+    <h3>Checkout</h3>
+    <ol class="checkout-steps" data-role="steps"></ol>
+
+    <div class="checkout-panel demo-form" data-step="1">
+      <h4>Contact information</h4>
+      <label>Full name
+        <input type="text" name="name" autocomplete="name" required>
+      </label>
+      <label>Email address
+        <input type="email" name="email" autocomplete="email" required>
+      </label>
+      <label>Phone number (optional)
+        <input type="tel" name="phone" autocomplete="tel">
+      </label>
+    </div>
+
+    <div class="checkout-panel demo-form" data-step="2" hidden>
+      <h4>Delivery</h4>
+      <label class="checkout-choice is-selected">
+        <input type="radio" name="delivery-${type}" value="pickup" checked>
+        <span><strong>Local pickup</strong> · Free<br>We’ll let you know when your order is ready.</span>
+      </label>
+      <label class="checkout-choice">
+        <input type="radio" name="delivery-${type}" value="shipping">
+        <span><strong>Ship to me</strong> · ${formatPrice(SHIPPING_FEE)} flat rate</span>
+      </label>
+      <div data-role="address" hidden>
+        <label>Street address
+          <input type="text" name="street" autocomplete="street-address">
+        </label>
+        <label>City
+          <input type="text" name="city" autocomplete="address-level2">
+        </label>
+        <div class="checkout-row">
+          <label>State
+            <input type="text" name="state" maxlength="2" pattern="[A-Za-z]{2}" title="Two-letter state code, for example FL" autocomplete="address-level1">
+          </label>
+          <label>ZIP code
+            <input type="text" name="zip" inputmode="numeric" pattern="[0-9]{5}(-[0-9]{4})?" title="5-digit ZIP code" autocomplete="postal-code">
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="checkout-panel" data-step="3" hidden>
+      <h4>Review your order</h4>
+      <div data-role="review"></div>
+    </div>
+
+    <div class="checkout-panel" data-step="4" hidden>
+      <h4>Payment</h4>
+      <p class="checkout-demo-note">Demo only: no payment is taken. Please don’t enter real card details.</p>
+      <div class="checkout-methods">
+        <button type="button" class="checkout-method is-selected" data-method="card">Pay with card</button>
+        <button type="button" class="checkout-method" data-method="paypal">PayPal</button>
+      </div>
+
+      <div class="demo-form" data-role="card-panel">
+        <label>Name on card
+          <input type="text" name="cardName" autocomplete="off" required>
+        </label>
+        <label>Card number
+          <input type="text" name="cardNumber" inputmode="numeric" autocomplete="off" maxlength="19" placeholder="1234 1234 1234 1234" required>
+        </label>
+        <div class="checkout-row">
+          <label>Expiry
+            <input type="text" name="cardExpiry" autocomplete="off" maxlength="5" placeholder="MM/YY" required>
+          </label>
+          <label>CVC
+            <input type="text" name="cardCvc" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="123" required>
+          </label>
+        </div>
+        <button type="button" class="checkout-primary-btn checkout-pay-btn" data-role="card-pay"></button>
+      </div>
+
+      <div data-role="paypal-panel" hidden>
+        <p>You would be sent to PayPal to approve the payment. In this demo, no PayPal window opens.</p>
+        <button type="button" class="checkout-primary-btn checkout-pay-btn" data-role="paypal-pay"></button>
+      </div>
+
+      <p class="checkout-error" data-role="pay-error" role="alert" hidden></p>
+    </div>
+
+    <div class="checkout-nav">
+      <button type="button" class="demo-secondary-btn" data-role="back">Back</button>
+      <button type="button" class="checkout-primary-btn" data-role="next">Continue</button>
+    </div>`;
+}
+
+// ---- Order data ----
+
+// Everything about the order in one object (also what a real payment call would receive).
+function buildOrder(type) {
+  const root = checkout[type].root;
+  const value = name => root.querySelector(`[name="${name}"]`).value.trim();
+  const method = checkout[type].delivery;
+
+  const subtotal = getCartTotal(type);
+  const shipping = method === 'shipping' ? SHIPPING_FEE : 0;
+
+  return {
+    type,
+    contact: { name: value('name'), email: value('email'), phone: value('phone') },
+    delivery: {
+      method,
+      address: method === 'shipping'
+        ? { street: value('street'), city: value('city'), state: value('state').toUpperCase(), zip: value('zip') }
+        : null
+    },
+    lines: cart.items[type].map(line => ({ ...line })),
+    subtotal,
+    shipping,
+    total: subtotal + shipping
+  };
+}
+
+// ---- Display pieces (shared by the Review step and the confirmation) ----
+
+function createTextLines(lines) {
+  const box = createEl('div', 'checkout-text-lines');
+  lines.filter(Boolean).forEach(line => box.appendChild(createEl('div', '', line)));
+  return box;
+}
+
+function createOrderLines(order) {
+  const box = createEl('div', 'checkout-lines');
+  order.lines.forEach(line => {
+    const row = createEl('div', 'checkout-line');
+    row.append(
+      createEl('span', '', `${line.name} × ${line.qty}`),
+      createEl('span', '', formatPrice((Number(line.price) || 0) * line.qty))
+    );
+    box.appendChild(row);
+  });
+
+  const totals = [
+    ['Subtotal', formatPrice(order.subtotal)],
+    [order.delivery.method === 'shipping' ? 'Shipping' : 'Local pickup', order.shipping ? formatPrice(order.shipping) : 'Free'],
+    ['Total', formatPrice(order.total)]
+  ];
+  totals.forEach(([label, amount], i) => {
+    const row = createEl('div', i === totals.length - 1 ? 'checkout-line checkout-line-total' : 'checkout-line checkout-line-sub');
+    row.append(createEl('span', '', label), createEl('span', '', amount));
+    box.appendChild(row);
+  });
+  return box;
+}
+
+function createDeliveryLines(order) {
+  if (order.delivery.method === 'pickup') return createTextLines(['Local pickup']);
+  const { street, city, state, zip } = order.delivery.address;
+  return createTextLines(['Shipping', street, `${city}, ${state} ${zip}`]);
+}
+
+function createReviewBlock(title, contentEl, onEdit) {
+  const block = createEl('div', 'checkout-review-block');
+  const head = createEl('div', 'checkout-review-head');
+  head.appendChild(createEl('strong', '', title));
+  if (onEdit) {
+    const editBtn = createEl('button', 'checkout-link-btn', 'Edit');
+    editBtn.type = 'button';
+    editBtn.addEventListener('click', onEdit);
+    head.appendChild(editBtn);
+  }
+  block.append(head, contentEl);
+  return block;
+}
+
+function renderCheckoutReview(type) {
+  const order = buildOrder(type);
+  const box = checkout[type].root.querySelector('[data-role="review"]');
+  box.textContent = '';
+  box.append(
+    createReviewBlock('Items', createOrderLines(order)),
+    createReviewBlock('Contact', createTextLines([order.contact.name, order.contact.email, order.contact.phone]),
+      () => showCheckoutStep(type, 1)),
+    createReviewBlock('Delivery', createDeliveryLines(order), () => showCheckoutStep(type, 2))
+  );
+}
+
+function updatePayButtons(type) {
+  const root = checkout[type].root;
+  const total = formatPrice(buildOrder(type).total);
+  root.querySelector('[data-role="card-pay"]').textContent = `Pay ${total}`;
+  root.querySelector('[data-role="paypal-pay"]').textContent = `Pay ${total} with PayPal`;
+}
+
+// ---- Step handling ----
+
+function showCheckoutStep(type, step) {
+  const state = checkout[type];
+  const root = state.root;
+  state.step = Math.min(Math.max(step, 1), CHECKOUT_STEPS.length);
+
+  root.querySelectorAll('.checkout-panel').forEach(panel => {
+    panel.hidden = Number(panel.dataset.step) !== state.step;
+  });
+  root.querySelectorAll('.checkout-step').forEach((item, i) => {
+    item.classList.toggle('is-active', i + 1 === state.step);
+    item.classList.toggle('is-done', i + 1 < state.step);
+    item.querySelector('.checkout-step-num').textContent = i + 1 < state.step ? '✓' : String(i + 1);
+  });
+
+  root.querySelector('[data-role="back"]').hidden = state.step === 1;
+  root.querySelector('[data-role="next"]').hidden = state.step === CHECKOUT_STEPS.length;
+  root.querySelector('[data-role="pay-error"]').hidden = true;
+
+  if (state.step === 3) renderCheckoutReview(type);
+  if (state.step === 4) updatePayButtons(type);
+}
+
+// Checks the visible inputs of a container; shows the browser's own message on the first problem.
+function validateInputs(container) {
+  for (const input of container.querySelectorAll('input')) {
+    if (input.closest('[hidden]')) continue;   // ignore fields that are not showing
+    if (!input.checkValidity()) {
+      input.reportValidity();
+      input.focus();
+      return false;
+    }
+  }
+  return true;
+}
+
+function validateCheckoutStep(type, step) {
+  const panel = checkout[type].root.querySelector(`.checkout-panel[data-step="${step}"]`);
+  return validateInputs(panel);
+}
+
+function setDeliveryUi(type) {
+  const { root, delivery } = checkout[type];
+  const isShipping = delivery === 'shipping';
+
+  root.querySelector('[data-role="address"]').hidden = !isShipping;
+  ['street', 'city', 'state', 'zip'].forEach(name => {
+    root.querySelector(`[name="${name}"]`).required = isShipping;
+  });
+  root.querySelectorAll('.checkout-choice').forEach(choice => {
+    choice.classList.toggle('is-selected', choice.querySelector('input').checked);
+  });
+}
+
+function setPayMethodUi(type) {
+  const { root, payMethod } = checkout[type];
+  root.querySelector('[data-role="card-panel"]').hidden = payMethod !== 'card';
+  root.querySelector('[data-role="paypal-panel"]').hidden = payMethod !== 'paypal';
+  root.querySelectorAll('.checkout-method').forEach(btn => {
+    btn.classList.toggle('is-selected', btn.dataset.method === payMethod);
+  });
+  root.querySelector('[data-role="pay-error"]').hidden = true;
+}
+
+// Called by renderCart(): keeps an open Review / Pay step in sync with the cart.
+function refreshCheckout(type) {
+  const state = checkout[type];
+  if (!state.root) return;
+  if (state.step === 3) renderCheckoutReview(type);
+  if (state.step === 4) updatePayButtons(type);
+}
+
+// ---- Paying + confirmation ----
+
+async function submitPayment(type, method) {
+  const root = checkout[type].root;
+  const errorEl = root.querySelector('[data-role="pay-error"]');
+  errorEl.hidden = true;
+
+  if (cart.items[type].length === 0) return;
+  // Only checks the demo card fields are filled in; their values are never read.
+  if (method === 'card' && !validateInputs(root.querySelector('[data-role="card-panel"]'))) return;
+
+  const order = buildOrder(type);
+  const payButtons = root.querySelectorAll('.checkout-pay-btn');
+  const labels = [...payButtons].map(btn => btn.textContent);
+  payButtons.forEach(btn => { btn.disabled = true; btn.textContent = 'Processing…'; });
+
+  try {
+    const result = method === 'card'
+      ? await processCardPayment(order)
+      : await processPayPalPayment(order);
+    completeOrder(type, order, result.orderId, method);
+  } catch (err) {
+    errorEl.textContent = err.message || 'Payment could not be completed. Please try again.';
+    errorEl.hidden = false;
+    payButtons.forEach((btn, i) => { btn.disabled = false; btn.textContent = labels[i]; });
+  }
+}
+
+function hideOrderConfirmation(type) {
+  const box = byId(cart.ui[type].confirmation);
+  if (box) box.hidden = true;
+}
+
+function completeOrder(type, order, orderId, method) {
+  const ui = cart.ui[type];
+  const box = byId(ui.confirmation);
+  if (!box) return;
+
+  const continueBtn = createEl('button', 'checkout-primary-btn', 'Continue shopping');
+  continueBtn.type = 'button';
+  continueBtn.addEventListener('click', () => {
+    hideOrderConfirmation(type);
+    const itemsLink = document.querySelector(ui.itemsLink);
+    if (itemsLink) itemsLink.click();
+  });
+
+  box.textContent = '';
+  box.append(
+    createEl('h3', '', `Thank you, ${order.contact.name}!`),
+    createEl('p', 'order-confirmation-id', `Order number: ${orderId}`),
+    createEl('p', '', `Paid with ${method === 'card' ? 'card' : 'PayPal'} (demo). In a live store, a confirmation email would be sent to ${order.contact.email}.`),
+    createReviewBlock('Order summary', createOrderLines(order)),
+    createReviewBlock('Delivery', createDeliveryLines(order)),
+    createEl('p', 'checkout-demo-note', 'This was a demo order. No payment was taken and nothing was saved.'),
+    continueBtn
+  );
+  box.hidden = false;
+
+  cart.items[type] = [];
+  renderCart(type);        // empties the cart list and closes the checkout area
+  buildCheckout(type);     // fresh wizard (clears everything typed, including demo card fields)
+  box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// ---- Setup ----
+
+function buildCheckout(type) {
+  const state = checkout[type];
+  const root = byId(cart.ui[type].checkoutSection);
+  if (!root) return;
+
+  root.innerHTML = checkoutTemplate(type);
+  Object.assign(state, { root, step: 1, delivery: 'pickup', payMethod: 'card' });
+
+  const stepsList = root.querySelector('[data-role="steps"]');
+  CHECKOUT_STEPS.forEach((label, i) => {
+    const item = createEl('li', 'checkout-step');
+    item.append(createEl('span', 'checkout-step-num', String(i + 1)), createEl('span', 'checkout-step-label', label));
+    stepsList.appendChild(item);
+  });
+
+  root.querySelectorAll('input[type="radio"]').forEach(radio => {
+    radio.addEventListener('change', () => { state.delivery = radio.value; setDeliveryUi(type); });
+  });
+  root.querySelectorAll('.checkout-method').forEach(btn => {
+    btn.addEventListener('click', () => { state.payMethod = btn.dataset.method; setPayMethodUi(type); });
+  });
+
+  root.querySelector('[data-role="back"]').addEventListener('click', () => showCheckoutStep(type, state.step - 1));
+  root.querySelector('[data-role="next"]').addEventListener('click', () => {
+    if (validateCheckoutStep(type, state.step)) showCheckoutStep(type, state.step + 1);
+  });
+  root.querySelector('[data-role="card-pay"]').addEventListener('click', () => submitPayment(type, 'card'));
+  root.querySelector('[data-role="paypal-pay"]').addEventListener('click', () => submitPayment(type, 'paypal'));
+
+  showCheckoutStep(type, 1);
+}
+
+// Builds the wizard and wires the cart page's Checkout button to open it.
+function setupCheckout(type) {
+  const ui = cart.ui[type];
+  const button = byId(ui.checkoutBtn);
+  const section = byId(ui.checkoutSection);
   if (!button || !section) return;
 
+  buildCheckout(type);
+
   button.addEventListener('click', () => {
+    showCheckoutStep(type, 1);
     section.hidden = false;
     button.hidden = true;
     section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -585,7 +1030,7 @@ function setupCheckoutReveal(buttonId, sectionId) {
 }
 
 
-/* ---- 5.6 Month calendar (Popkern = plain, Deckcard = clickable events) -- */
+/* ---- 5.7 Month calendar (Popkern = plain, Deckcard = clickable events) -- */
 
 // Builds the list of months from the current month through the last event.
 function buildMonthRange(events) {
@@ -708,7 +1153,7 @@ function setupCalendar({ prevId, nextId, labelId, gridId, events, isDeckcard = f
 }
 
 
-/* ---- 5.7 Click-anywhere-to-close for the header dropdown menus ---------- */
+/* ---- 5.8 Click-anywhere-to-close for the header dropdown menus ---------- */
 
 function setupGlobalDropdownClose() {
   window.addEventListener('click', () => {
@@ -1055,6 +1500,48 @@ function setupThreeDreamCatalog(items) {
 }
 
 
+/* ---- 7.4 Business inquiry form ------------------------------------------ */
+
+// Every field here must be filled in (spaces only counts as empty).
+const INQUIRY_FIELD_IDS = ['td-inquiry-company', 'td-inquiry-details'];
+
+// Back to the empty form (called every time the page is opened).
+function resetInquiryForm() {
+  const form = byId('td-inquiry-form');
+  if (!form) return;
+
+  form.reset();
+  byId('td-inquiry-form-view').hidden = false;
+  byId('td-inquiry-thanks').hidden = true;
+}
+
+function setupThreeDreamInquiryForm() {
+  const form = byId('td-inquiry-form');
+  if (!form) return;
+
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+
+    for (const id of INQUIRY_FIELD_IDS) {
+      const field = byId(id);
+      if (field.value.trim() !== '') continue;
+
+      const label = form.querySelector(`label[for="${id}"]`).textContent.trim();
+      showToast(`${label} cannot be empty.`, field.getBoundingClientRect(), {
+        variant: 'error', above: true, duration: 3000
+      });
+      field.focus();
+      return;
+    }
+
+    // Demo: nothing is sent anywhere.
+    hideToast();
+    byId('td-inquiry-form-view').hidden = true;
+    byId('td-inquiry-thanks').hidden = false;
+  });
+}
+
+
 /* ==========================================================================
    8. DECKCARD DEMO
    ========================================================================== */
@@ -1183,14 +1670,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupAllSubpageNavs();
   setupModalDismissal();
   setupItemModal();
-  setupCheckoutReveal('td-checkout-btn', 'td-checkout-section');
-  setupCheckoutReveal('dc-checkout-btn', 'dc-checkout-section');
+  setupCheckout('3dream');
+  setupCheckout('deckcard');
   renderCart('3dream');
   renderCart('deckcard');
 
   setupPopkernMenu();
   setupThreeDreamMenu();
   setupThreeDreamSearch();
+  setupThreeDreamInquiryForm();
   setupGlobalDropdownClose();
 
   setupDeckcardTabs();
