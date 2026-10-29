@@ -127,7 +127,10 @@
         </a>
       </div>
       <div class="td-search-container">
-        <input type="text" id="td-search-input" placeholder="Search 3D models & products..." class="td-search-input">
+        <div class="td-search-field">
+          <input type="text" id="td-search-input" placeholder="Search 3D models & products..." class="td-search-input">
+          <button type="button" id="td-search-clear" class="td-search-clear" aria-label="Clear search" hidden>×</button>
+        </div>
         <button id="td-search-btn" class="td-search-btn">🔍</button>
       </div>
       <div class="td-dropdown">
@@ -156,7 +159,14 @@
     <!-- 3Dream: Items -->
     <div id="td-items" class="td-page">
       <h2>Store</h2>
+      <p id="td-search-status" class="search-status" hidden>
+        <span data-role="text"></span>
+        <button type="button" id="td-search-clear-link" class="checkout-link-btn">Clear search</button>
+      </p>
       <div class="grid grid-3" id="td-items-grid"></div>
+      <div class="load-more-wrap">
+        <button type="button" id="td-load-more" class="checkout-primary-btn" hidden>Load more</button>
+      </div>
     </div>
 
     <!-- 3Dream: Cart (the checkout wizard is built into #td-checkout-section by app.js) -->

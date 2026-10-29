@@ -31,6 +31,9 @@ const STORAGE_URL = {
 
 const SLIDE_INTERVAL_MS = 5000;
 
+// How many 3Dream store items are loaded at a time (the database function allows up to 100).
+const STORE_PAGE_SIZE = 24;
+
 // Column in `deckcard_inventory` that holds how many of an item are in stock.
 // Change this if your column has a different name.
 const DECKCARD_STOCK_COLUMN = 'stock_quantity';
@@ -118,7 +121,24 @@ const loadPopkernEvents     = () => loadTable('popkern_events',     'event_date'
 const loadPopkernFlavors    = () => loadTable('popkern_flavors',    'name');
 const loadDeckcardInventory = () => loadTable('deckcard_inventory', 'name');
 const loadDeckcardEvents    = () => loadTable('deckcard_events',    'event_date', toDeckcardEvent);
-const loadThreeDreamItems   = () => loadTable('threedream_items',   'name');
+
+
+// One page of the 3Dream store, from the `search_threedream_items` database function.
+// Empty query = every item A-Z. The search itself (name + keywords) happens in Supabase.
+// Throws if the request fails.
+async function searchThreeDreamItems(query, offset = 0) {
+  if (!supabaseClient) return { items: [], total: 0 };
+
+  const { data, error } = await supabaseClient.rpc('search_threedream_items', {
+    query_text: query,
+    page_size: STORE_PAGE_SIZE,
+    page_offset: offset
+  });
+  if (error) throw error;
+
+  const rows = data || [];
+  return { items: rows, total: rows.length > 0 ? Number(rows[0].total_count) : 0 };
+}
 
 
 /* ==========================================================================
@@ -259,12 +279,18 @@ const pageEnterHooks = {
   'td-inquiries': () => resetInquiryForm()
 };
 
+// Code that runs when the visitor moves away from a sub-page.
+const pageLeaveHooks = {
+  'td-items': () => resetThreeDreamSearch()   // leaving the Store clears any search
+};
+
 function setupSubpageNav(navSelector, pageClass) {
   document.querySelectorAll(navSelector).forEach(link => {
     link.addEventListener('click', e => {
       e.preventDefault();
       const pageId = link.getAttribute('data-page');
       const demo = link.closest('.demo-wrapper');
+      const previousPage = demo.querySelector('.active-subpage');
 
       demo.querySelectorAll(navSelector).forEach(l => l.classList.remove('active'));
       demo.querySelectorAll(`.${pageClass}`).forEach(p => p.classList.remove('active-subpage'));
@@ -276,6 +302,10 @@ function setupSubpageNav(navSelector, pageClass) {
 
       const targetPage = demo.querySelector(`[id$="-${pageId}"]`);
       if (targetPage) {
+        if (previousPage && previousPage !== targetPage) {
+          const onLeave = pageLeaveHooks[previousPage.id];
+          if (onLeave) onLeave();
+        }
         targetPage.classList.add('active-subpage');
         const onEnter = pageEnterHooks[targetPage.id];
         if (onEnter) onEnter();
@@ -1415,7 +1445,72 @@ function setupThreeDreamMenu() {
 }
 
 
-/* ---- 7.2 Search (demo only: alerts, then jumps to the catalog) ---------- */
+/* ---- 7.2 Store data + search (the search runs in Supabase) --------------- */
+
+// What the Store page is currently showing.
+const threedreamStore = {
+  items: [],        // the pages loaded so far
+  total: 0,         // how many items match in total
+  query: '',        // active search ('' = browsing everything)
+  loading: false,
+  error: false,
+  requestId: 0      // lets us ignore a slow reply that a newer request has replaced
+};
+
+// Loads the first page for the current query, or (append = true) the next page.
+async function loadThreeDreamStore({ append = false } = {}) {
+  const store = threedreamStore;
+  const requestId = ++store.requestId;
+  const offset = append ? store.items.length : 0;
+
+  if (!append) {
+    store.items = [];
+    store.total = 0;
+    store.error = false;
+  }
+  store.loading = true;
+  renderThreeDreamCatalog();
+
+  try {
+    const { items, total } = await searchThreeDreamItems(store.query, offset);
+    if (requestId !== store.requestId) return;          // replaced by a newer request
+    store.items = append ? store.items.concat(items) : items;
+    store.total = total;
+  } catch (err) {
+    if (requestId !== store.requestId) return;
+    console.warn('Could not load 3Dream items:', err.message);
+    if (append) {
+      const moreBtn = byId('td-load-more');
+      if (moreBtn) {
+        showToast('Couldn’t load more items. Please try again.', moreBtn.getBoundingClientRect(),
+          { variant: 'error', above: true, duration: 3000 });
+      }
+    } else {
+      store.error = true;
+    }
+  }
+
+  store.loading = false;
+  renderThreeDreamCatalog();
+}
+
+function updateSearchClearButton() {
+  const input = byId('td-search-input');
+  const clearBtn = byId('td-search-clear');
+  if (input && clearBtn) clearBtn.hidden = input.value === '';
+}
+
+// Empties the search box and goes back to the full catalog.
+function resetThreeDreamSearch() {
+  const hadSearch = threedreamStore.query !== '';
+  threedreamStore.query = '';
+
+  const input = byId('td-search-input');
+  if (input) input.value = '';
+  updateSearchClearButton();
+
+  if (hadSearch) loadThreeDreamStore();
+}
 
 function setupThreeDreamSearch() {
   const btn = byId('td-search-btn');
@@ -1423,18 +1518,26 @@ function setupThreeDreamSearch() {
   if (!btn || !input) return;
 
   const runSearch = () => {
-    const query = input.value.trim();
-    if (!query) return;
+    const query = input.value.trim().replace(/\s+/g, ' ');
+    if (!query) return;                       // empty search does nothing
 
-    alert(`Searching 3Dream catalog for: "${query}"`);
+    threedreamStore.query = query;
+    loadThreeDreamStore();
     const itemsLink = document.querySelector('.td-nav-link[data-page="items"]');
     if (itemsLink) itemsLink.click();
   };
 
   btn.addEventListener('click', runSearch);
-  input.addEventListener('keypress', e => {
+  input.addEventListener('keydown', e => {
     if (e.key === 'Enter') runSearch();
   });
+  input.addEventListener('input', updateSearchClearButton);
+
+  byId('td-search-clear').addEventListener('click', () => {
+    resetThreeDreamSearch();
+    input.focus();
+  });
+  byId('td-search-clear-link').addEventListener('click', resetThreeDreamSearch);
 }
 
 
@@ -1487,16 +1590,55 @@ function createThreeDreamCard(item) {
   return card;
 }
 
-function setupThreeDreamCatalog(items) {
+function createStoreRetryMessage() {
+  const box = createEmptyMessage('Couldn’t load the store. Please try again.');
+  const retry = createEl('button', 'checkout-link-btn', 'Try again');
+  retry.type = 'button';
+  retry.addEventListener('click', () => loadThreeDreamStore());
+  box.append(' ', retry);
+  return box;
+}
+
+// Draws the Store grid, the "Showing x of y" line and the Load more button.
+function renderThreeDreamCatalog() {
   const grid = byId('td-items-grid');
   if (!grid) return;
 
+  const { items, total, query, loading, error } = threedreamStore;
+
   grid.innerHTML = '';
-  if (items.length === 0) {
-    grid.appendChild(createEmptyMessage('No items available right now.'));
+  if (error) {
+    grid.appendChild(createStoreRetryMessage());
+  } else if (items.length === 0) {
+    const text = loading
+      ? (query ? 'Searching…' : 'Loading items…')
+      : (query ? `No items match “${query}”. Try a different word.` : 'No items available right now.');
+    grid.appendChild(createEmptyMessage(text));
   } else {
     items.forEach(item => grid.appendChild(createThreeDreamCard(item)));
   }
+
+  const status = byId('td-search-status');
+  if (status) {
+    status.hidden = !query || error;
+    status.querySelector('[data-role="text"]').textContent = loading && items.length === 0
+      ? `Searching for “${query}”…`
+      : `Showing ${items.length} of ${total} items for “${query}”.`;
+  }
+
+  const moreBtn = byId('td-load-more');
+  if (moreBtn) {
+    moreBtn.hidden = error || items.length === 0 || items.length >= total;
+    moreBtn.disabled = loading;
+    moreBtn.textContent = loading ? 'Loading…' : 'Load more';
+  }
+}
+
+function setupThreeDreamCatalog() {
+  const moreBtn = byId('td-load-more');
+  if (moreBtn) moreBtn.addEventListener('click', () => loadThreeDreamStore({ append: true }));
+
+  loadThreeDreamStore();
 }
 
 
@@ -1685,13 +1827,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupDeckcardLogin();
   setupDeckcardEventModal();
 
-  // --- Data (all five requests run at once) ---
-  const [popkernEvents, flavors, deckcardItems, deckcardEvents, threedreamItems] = await Promise.all([
+  // --- Data (these requests all run at once) ---
+  setupThreeDreamCatalog();   // starts loading the first page of the store
+
+  const [popkernEvents, flavors, deckcardItems, deckcardEvents] = await Promise.all([
     loadPopkernEvents(),
     loadPopkernFlavors(),
     loadDeckcardInventory(),
-    loadDeckcardEvents(),
-    loadThreeDreamItems()
+    loadDeckcardEvents()
   ]);
 
   // --- Data-driven UI ---
@@ -1699,7 +1842,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupSlideshow(flavors);
   setupFlavorsGrid(flavors);
   setupDeckcardInventory(deckcardItems);
-  setupThreeDreamCatalog(threedreamItems);
 
   setupCalendar({
     prevId: 'pk-prev-month', nextId: 'pk-next-month',

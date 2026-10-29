@@ -1235,6 +1235,58 @@ a {
   font-size: 0.9rem;
 }
 
+/* Wrapper that lets the clear (×) button sit inside the search box */
+.td-search-field {
+  position: relative;
+  flex: 1;
+  display: flex;
+}
+
+.td-search-field .td-search-input {
+  padding-right: 34px;
+}
+
+.td-search-clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: 50%;
+  color: #94A3B8;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.td-search-clear:hover {
+  color: #F8FAFC;
+  background: #334155;
+}
+
+.td-search-clear[hidden] {
+  display: none;
+}
+
+/* "Showing 2 of 6 items for ..." line above the Store grid */
+.load-more-wrap {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.search-status {
+  margin-bottom: 14px;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
 .td-search-input::placeholder { color: #64748B; }
 .td-search-input:focus        { border-color: #38BDF8; }
 
@@ -1302,6 +1354,36 @@ a {
 .td-dropdown-content a.active {
   background-color: #334155;
   color: #38BDF8;
+}
+
+/* Store grid: 3 columns, but 1 or 2 results become a centered group of normal-size cards */
+#td-items-grid {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+/* Exactly 1 result: one card-sized column, centered */
+#td-items-grid:has(> .td-card:only-child) {
+  grid-template-columns: minmax(0, 333px);
+  justify-content: center;
+}
+
+/* Exactly 2 results: two card-sized columns, centered */
+#td-items-grid:has(> .td-card:nth-child(2):last-child) {
+  grid-template-columns: repeat(2, minmax(0, 333px));
+  justify-content: center;
+}
+
+/* Tablets: 2 columns */
+@media (max-width: 900px) {
+  #td-items-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Phones: 1 column, including when there are 2 results */
+@media (max-width: 550px) {
+  #td-items-grid,
+  #td-items-grid:has(> .td-card:nth-child(2):last-child) {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Catalog cards */
