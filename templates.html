@@ -8,7 +8,9 @@
 </head>
 <body class="main-site">
 
-  <!-- Main Agency Header -->
+  <!-- ============================================================
+       AGENCY HEADER & DEMO SWITCHER
+       ============================================================ -->
   <header class="main-header">
     <div class="container nav-container">
       <a href="index.html" class="logo-link">
@@ -23,7 +25,7 @@
     </div>
   </header>
 
-  <!-- Demo Switcher Sub-Navbar -->
+  <!-- Demo switcher bar -->
   <div class="demo-switcher-bar">
     <div class="container demo-switcher-container">
       <span class="switcher-label">Select Demo Site:</span>
@@ -34,7 +36,9 @@
     </div>
   </div>
 
-  <!-- DEMO CONTAINER: POPKERN -->
+<!-- ============================================================
+       DEMO 1: POPKERN (Kettle Popcorn)  ·  prefix: pk- / popkern-
+       ============================================================ -->
   <div id="demo-popkern" class="demo-wrapper popkern-theme active-demo">
     <header class="demo-header pk-custom-header">
       <div class="pk-header-spacer"></div>
@@ -112,7 +116,9 @@
     </div>
   </div>
 
-  <!-- DEMO CONTAINER: 3DREAM -->
+<!-- ============================================================
+       DEMO 2: 3DREAM (3D Printing)  ·  prefix: td-
+       ============================================================ -->
   <div id="demo-threedream" class="demo-wrapper threedream-theme">
     <header class="demo-header td-custom-header">
       <div class="demo-brand">
@@ -121,21 +127,24 @@
         </a>
       </div>
       <div class="td-search-container">
-        <input type="text" id="td-search-input" placeholder="Search 3D models & products..." class="td-search-input">
+        <div class="td-search-field">
+          <input type="text" id="td-search-input" placeholder="Search 3D models & products..." class="td-search-input">
+          <button type="button" id="td-search-clear" class="td-search-clear" aria-label="Clear search" hidden>×</button>
+        </div>
         <button id="td-search-btn" class="td-search-btn">🔍</button>
       </div>
       <div class="td-dropdown">
         <button class="td-dropdown-btn" id="td-menu-btn">Menu ☰</button>
         <div class="td-dropdown-content" id="td-menu-dropdown">
           <a href="#" class="td-nav-link active" data-page="home">Home</a>
-          <a href="#" class="td-nav-link" data-page="items">Items for Sale</a>
+          <a href="#" class="td-nav-link" data-page="items">Store</a>
           <a href="#" class="td-nav-link" data-page="cart">Cart (<span class="td-cart-count">0</span>)</a>
-          <a href="#" class="td-nav-link" data-page="checkout">Checkout</a>
           <a href="#" class="td-nav-link" data-page="inquiries">Business Inquiries</a>
         </div>
       </div>
     </header>
 
+    <!-- 3Dream: Home -->
     <div id="td-home" class="td-page active-subpage">
       <div class="td-hero">
         <h1>Precision 3D Printing & Design</h1>
@@ -147,40 +156,51 @@
       </div>
     </div>
 
+    <!-- 3Dream: Items -->
     <div id="td-items" class="td-page">
-      <h2>Items for Sale</h2>
+      <h2>Store</h2>
+      <p id="td-search-status" class="search-status" hidden>
+        <span data-role="text"></span>
+        <button type="button" id="td-search-clear-link" class="checkout-link-btn">Clear search</button>
+      </p>
       <div class="grid grid-3" id="td-items-grid"></div>
+      <div class="load-more-wrap">
+        <button type="button" id="td-load-more" class="checkout-primary-btn" hidden>Load more</button>
+      </div>
     </div>
 
+    <!-- 3Dream: Cart (the checkout wizard is built into #td-checkout-section by app.js) -->
     <div id="td-cart" class="td-page">
       <h2>Shopping Cart</h2>
+      <div id="td-order-confirmation" class="order-confirmation" hidden></div>
       <div id="td-cart-items-container"></div>
+      <button id="td-checkout-btn" class="checkout-primary-btn">Checkout</button>
+      <div id="td-checkout-section" class="checkout-section" hidden></div>
     </div>
 
-    <div id="td-checkout" class="td-page">
-      <h2>Checkout</h2>
-      <form class="demo-form" onsubmit="event.preventDefault(); alert('Order placed! (Demo)');">
-        <label>Full Name</label>
-        <input type="text" placeholder="John Doe" required>
-        <label>Shipping Address</label>
-        <input type="text" placeholder="123 Main St" required>
-        <button type="submit" class="demo-action-btn">Place Order</button>
-      </form>
-    </div>
-
+    <!-- 3Dream: Business Inquiries (form view is replaced by the thank-you view after submitting) -->
     <div id="td-inquiries" class="td-page">
-      <h2>Business Inquiries</h2>
-      <form class="demo-form" onsubmit="event.preventDefault(); alert('Inquiry sent!');">
-        <label>Company Name</label>
-        <input type="text" placeholder="Acme Corp">
-        <label>Custom Request Details</label>
-        <textarea rows="4" placeholder="Describe your custom 3D printing project..."></textarea>
-        <button type="submit" class="demo-action-btn">Submit Request</button>
-      </form>
+      <div id="td-inquiry-form-view">
+        <h2>Business Inquiries</h2>
+        <form id="td-inquiry-form" class="demo-form" novalidate>
+          <label for="td-inquiry-company">Company Name</label>
+          <input type="text" id="td-inquiry-company" placeholder="Acme Corp">
+          <label for="td-inquiry-details">Custom Request Details</label>
+          <textarea id="td-inquiry-details" rows="4" placeholder="Describe your custom 3D printing project..."></textarea>
+          <button type="submit" class="demo-action-btn">Submit Request</button>
+        </form>
+      </div>
+
+      <div id="td-inquiry-thanks" hidden>
+        <h2>Thank you for your inquiry!</h2>
+        <p>We’ve received your request and will be in touch soon.</p>
+      </div>
     </div>
   </div>
 
-  <!-- DEMO CONTAINER: DECKCARD -->
+<!-- ============================================================
+       DEMO 3: DECKCARD (Card Shop)  ·  prefix: dc-
+       ============================================================ -->
   <div id="demo-deckcard" class="demo-wrapper deckcard-theme">
     <header class="demo-header">
       <div class="demo-brand">
@@ -191,14 +211,14 @@
       <nav class="demo-nav">
         <a href="#" class="dc-nav-link active" data-page="home">Home</a>
         <a href="#" class="dc-nav-link" data-page="events">Events</a>
-        <a href="#" class="dc-nav-link" data-page="items">Items for Sale</a>
+        <a href="#" class="dc-nav-link" data-page="items">Store</a>
         <a href="#" class="dc-nav-link" data-page="cart">Cart (<span class="dc-cart-count">0</span>)</a>
-        <a href="#" class="dc-nav-link" data-page="checkout">Checkout</a>
         <a href="#" class="dc-nav-link" data-page="account">Account</a>
         <a href="#" id="dc-login-toggle" class="demo-auth-btn">Login</a>
       </nav>
     </header>
 
+    <!-- Deckcard: Home -->
     <div id="dc-home" class="dc-page active-subpage">
       <div class="dc-hero">
         <h1>Your Local Trading Card & Tournament Hub</h1>
@@ -206,6 +226,7 @@
       </div>
     </div>
 
+    <!-- Deckcard: Events (calendar) -->
     <div id="dc-events" class="dc-page">
       <h2>Tournaments & Events</h2>
       <div class="calendar-wrapper">
@@ -227,21 +248,22 @@
       </div>
     </div>
 
+    <!-- Deckcard: Items -->
     <div id="dc-items" class="dc-page">
       <h2>Trading Cards & Packs</h2>
       <div class="grid grid-5" id="dc-items-grid"></div>
     </div>
 
+    <!-- Deckcard: Cart (the checkout wizard is built into #dc-checkout-section by app.js) -->
     <div id="dc-cart" class="dc-page">
       <h2>Your Cart</h2>
+      <div id="dc-order-confirmation" class="order-confirmation" hidden></div>
       <div id="dc-cart-items-container"></div>
+      <button id="dc-checkout-btn" class="checkout-primary-btn">Checkout</button>
+      <div id="dc-checkout-section" class="checkout-section" hidden></div>
     </div>
 
-    <div id="dc-checkout" class="dc-page">
-      <h2>Complete Purchase</h2>
-      <button class="demo-action-btn" onclick="alert('Order processed successfully!')">Submit Payment</button>
-    </div>
-
+    <!-- Deckcard: Account -->
     <div id="dc-account" class="dc-page">
       <h2>Member Account</h2>
       <div class="dc-tabs">
@@ -260,7 +282,9 @@
     </div>
   </div>
 
-  <!-- DEMO CONTAINER: DENTRA -->
+<!-- ============================================================
+       DEMO 4: DENTRA (Dental Office)  ·  prefix: dt-
+       ============================================================ -->
   <div id="demo-dentra" class="demo-wrapper dentra-theme">
     <header class="demo-header">
       <div class="demo-brand">
@@ -276,6 +300,7 @@
       </nav>
     </header>
 
+    <!-- Dentra: Home -->
     <div id="dt-home" class="dt-page active-subpage">
       <div class="dt-hero">
         <h1>Gentle, Comprehensive Dental Care</h1>
@@ -284,6 +309,7 @@
       </div>
     </div>
 
+    <!-- Dentra: Services -->
     <div id="dt-services" class="dt-page">
       <h2>Our Services</h2>
       <div class="grid grid-3">
@@ -302,6 +328,7 @@
       </div>
     </div>
 
+    <!-- Dentra: Schedule -->
     <div id="dt-schedule" class="dt-page">
       <h2>Schedule an Appointment</h2>
       <form class="demo-form" onsubmit="event.preventDefault(); alert('Appointment requested! We will call to confirm.');">
@@ -320,6 +347,7 @@
       </form>
     </div>
 
+    <!-- Dentra: Contact -->
     <div id="dt-contact" class="dt-page">
       <h2>Contact Our Office</h2>
       <div class="grid grid-2">
@@ -341,7 +369,11 @@
     </div>
   </div>
 
-  <!-- POPKERN MODAL -->
+<!-- ============================================================
+       MODALS (shared overlays, toggled by app.js)
+       ============================================================ -->
+
+  <!-- Popkern: flavor detail -->
   <div id="popkern-modal" class="frosted-modal-overlay hidden">
     <div class="popkern-modal-box">
       <div class="pk-modal-left" id="pk-modal-img">IMG</div>
@@ -355,26 +387,50 @@
     </div>
   </div>
 
-  <!-- GENERIC ITEM MODAL -->
+  <!-- Deckcard: calendar event detail -->
+  <div id="deckcard-event-modal" class="frosted-modal-overlay hidden">
+    <div class="generic-modal-box">
+      <h3 id="dc-event-modal-title">Events</h3>
+      <div id="dc-event-modal-body" style="text-align: left; margin: 15px 0;"></div>
+      <div class="modal-actions">
+        <button id="dc-event-modal-close" class="demo-secondary-btn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3Dream + Deckcard: item detail / add to cart -->
   <div id="generic-item-modal" class="frosted-modal-overlay hidden">
     <div class="generic-modal-box">
       <div class="modal-img-placeholder" id="gen-modal-img">Image Placeholder</div>
       <h3 id="gen-modal-title">Item Name</h3>
+      <p id="gen-modal-price" class="modal-price" hidden></p>
+      <p id="gen-modal-stock" class="modal-stock" hidden></p>
       <p id="gen-modal-desc">Item description text.</p>
-      <div class="modal-actions">
+      <div class="modal-qty">
+        <button type="button" id="gen-modal-qty-minus" class="cart-qty-btn" aria-label="Decrease quantity">−</button>
+        <input type="text" id="gen-modal-qty" class="modal-qty-input" value="1" inputmode="numeric" maxlength="2" aria-label="Quantity">
+        <button type="button" id="gen-modal-qty-plus" class="cart-qty-btn" aria-label="Increase quantity">+</button>
+      </div>
+      <div class="modal-actions modal-actions-stacked">
         <button id="gen-modal-add" class="demo-action-btn">Add to Cart</button>
         <button id="gen-modal-close" class="demo-secondary-btn">Close</button>
       </div>
     </div>
   </div>
 
+  <!-- Pop-up message (added to cart, form errors): positioned and timed by app.js showToast() -->
+  <div id="toast" class="toast" role="status" hidden></div>
+
+  <!-- ============================================================
+       FOOTER & SCRIPTS
+       ============================================================ -->
   <footer class="main-footer">
     <div class="container footer-content">
       <p>&copy; 2026 WebdevV. All rights reserved.</p>
     </div>
   </footer>
 
-  <!-- Supabase CDN Script -->
+  <!-- Supabase client (must load before app.js) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app.js"></script>
 </body>

@@ -1,4 +1,32 @@
-/* Reset & General Setup */
+/* ==========================================================================
+   WebdevV — styles.css
+   --------------------------------------------------------------------------
+   TABLE OF CONTENTS
+     1. Base ......................... reset, body, headings, links
+     2. Layout ....................... container, grid
+     3. Agency site (white & red) .... header/nav, buttons, sections, cards,
+                                       hero, forms, footer
+     4. Demo framework ............... switcher bar, demo wrapper/header,
+                                       sub-page visibility
+     5. Shared demo components ....... buttons, forms, image placeholder,
+                                       calendar, empty-state note, modals
+     6. Demo themes
+          6.1 Popkern  (warm yellow)
+          6.2 3Dream   (dark blue)
+          6.3 Deckcard (dark purple)
+          6.4 Dentra   (teal)
+
+   NOTE ON ORDER: a few rules rely on source order to win ties of equal
+   specificity (e.g. .section after .container, .active-subpage after the
+   *-page rules, theme link colours before each demo's dropdown links).
+   Keep those relationships if you move things around.
+   ========================================================================== */
+
+
+/* ==========================================================================
+   1. BASE
+   ========================================================================== */
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -12,13 +40,6 @@ body {
   line-height: 1.6;
 }
 
-.container {
-  max-width: 1140px;
-  margin: 0 auto;
-  padding: 0 20px;
-}
-
-/* Typography & Links */
 h1, h2, h3, h4 {
   color: #111827;
   margin-bottom: 0.5rem;
@@ -29,7 +50,42 @@ a {
   text-decoration: none;
 }
 
-/* WebdevV Branding (White & Red Theme) - Max Height 70px & Vertically Centered Nav */
+
+/* ==========================================================================
+   2. LAYOUT
+   ========================================================================== */
+
+.container {
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.grid {
+  display: grid;
+  gap: 20px;
+}
+
+.grid-2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.grid-3 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.grid-4 { grid-template-columns: repeat(4, 1fr); }
+.grid-5 { grid-template-columns: repeat(5, 1fr); }
+
+@media (max-width: 900px) {
+  .grid-4, .grid-5 { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 550px) {
+  .grid-4, .grid-5 { grid-template-columns: 1fr; }
+}
+
+
+/* ==========================================================================
+   3. AGENCY SITE (white & red theme)
+   ========================================================================== */
+
+/* ---- 3.1 Header & navigation (70px tall, vertically centred) ------------ */
+
 .main-header {
   background-color: #FFFFFF;
   border-bottom: 2px solid #F3F4F6;
@@ -56,7 +112,6 @@ a {
   height: 100%;
 }
 
-/* Agency Logo: Max height of the main header (70px) */
 .agency-logo-img {
   max-height: 60px !important;
   height: 60px !important;
@@ -84,7 +139,8 @@ a {
   color: #DC2626;
 }
 
-/* Buttons */
+/* ---- 3.2 Buttons -------------------------------------------------------- */
+
 .btn {
   display: inline-block;
   padding: 12px 24px;
@@ -114,7 +170,8 @@ a {
   background-color: #E5E7EB;
 }
 
-/* Sections & Cards */
+/* ---- 3.3 Page sections -------------------------------------------------- */
+
 .section {
   padding: 60px 0;
 }
@@ -135,23 +192,7 @@ a {
   margin-bottom: 40px;
 }
 
-.grid {
-  display: grid;
-  gap: 20px;
-}
-
-.grid-2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
-.grid-3 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
-.grid-4 { grid-template-columns: repeat(4, 1fr); }
-.grid-5 { grid-template-columns: repeat(5, 1fr); }
-
-@media (max-width: 900px) {
-  .grid-4, .grid-5 { grid-template-columns: repeat(2, 1fr); }
-}
-
-@media (max-width: 550px) {
-  .grid-4, .grid-5 { grid-template-columns: 1fr; }
-}
+/* ---- 3.4 Cards ---------------------------------------------------------- */
 
 .card {
   background: #FFFFFF;
@@ -164,6 +205,8 @@ a {
   font-size: 2rem;
   margin-bottom: 12px;
 }
+
+/* ---- 3.5 Hero (home page) ----------------------------------------------- */
 
 .hero-section {
   padding: 90px 0;
@@ -185,6 +228,8 @@ a {
   margin: 0 auto 30px;
 }
 
+/* ---- 3.6 Contact form --------------------------------------------------- */
+
 .agency-form label {
   display: block;
   font-weight: 600;
@@ -199,7 +244,8 @@ a {
   border-radius: 6px;
 }
 
-/* Main Footer */
+/* ---- 3.7 Footer --------------------------------------------------------- */
+
 .main-footer {
   border-top: 1px solid #E5E7EB;
   padding: 30px 0;
@@ -219,7 +265,13 @@ a {
   color: #6B7280;
 }
 
-/* DEMO SWITCHER BAR */
+
+/* ==========================================================================
+   4. DEMO FRAMEWORK (templates.html)
+   ========================================================================== */
+
+/* ---- 4.1 Demo switcher bar (sticks under the 70px main header) ---------- */
+
 .demo-switcher-bar {
   background-color: #111827;
   color: #FFFFFF;
@@ -254,26 +306,30 @@ a {
   font-weight: 600;
 }
 
-.demo-btn.active, .demo-btn:hover {
+.demo-btn.active,
+.demo-btn:hover {
   background-color: #DC2626;
   color: #FFFFFF;
   border-color: #DC2626;
 }
 
-/* DEMO CONTAINER COMMON STYLES */
+/* ---- 4.2 Demo wrapper (one per demo site; only .active-demo is shown) --- */
+
 .demo-wrapper {
   display: none;
   min-height: 600px;
-  padding: 30px;
+  padding: 10px 30px 30px 30px;
   margin: 20px auto;
   max-width: 1100px;
   border-radius: 12px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
 }
 
 .demo-wrapper.active-demo {
   display: block;
 }
+
+/* ---- 4.3 Demo header ---------------------------------------------------- */
 
 .demo-header {
   display: flex;
@@ -281,7 +337,7 @@ a {
   align-items: center;
   padding-bottom: 16px;
   margin-bottom: 24px;
-  border-bottom: 2px solid rgba(0,0,0,0.08);
+  border-bottom: 2px solid rgba(0, 0, 0, 0.08);
 }
 
 .demo-brand {
@@ -289,27 +345,587 @@ a {
   font-weight: 800;
 }
 
-/* Specific size constraint for Popkern Logo inside its demo header */
-#demo-popkern .demo-logo-img {
-  max-height: 130px !important;
-  width: auto !important;
-  object-fit: contain;
-}
-
 .demo-nav a {
   margin-left: 15px;
   font-weight: 600;
 }
 
-.popkern-page, .td-page, .dc-page, .dt-page {
+/* ---- 4.4 Sub-pages (hidden until .active-subpage is added by app.js) ---- */
+
+.popkern-page,
+.td-page,
+.dc-page,
+.dt-page {
   display: none;
 }
 
 .active-subpage {
-  display: block;
+  display: block;   /* must stay AFTER the rule above */
 }
 
-/* DEMO 1: POPKERN THEME (Warm Popcorn Yellow) */
+
+/* ==========================================================================
+   5. SHARED DEMO COMPONENTS
+   ========================================================================== */
+
+/* ---- 5.1 Buttons -------------------------------------------------------- */
+
+.demo-action-btn {
+  background: #DC2626;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin: 5px;
+}
+
+.demo-secondary-btn {
+  background: #6B7280;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin: 5px;
+}
+
+/* ---- 5.2 Forms ---------------------------------------------------------- */
+
+.demo-form label {
+  display: block;
+  margin-top: 10px;
+  font-weight: 600;
+}
+
+.demo-form input,
+.demo-form select,
+.demo-form textarea {
+  width: 100%;
+  padding: 8px;
+  margin-top: 4px;
+  border-radius: 4px;
+  border: 1px solid #CCC;
+}
+
+/* Cart list (3Dream + Deckcard) */
+.cart-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.35);
+}
+
+.cart-row-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.cart-row-name {
+  font-weight: 600;
+}
+
+.cart-row-unit {
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+.cart-qty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cart-qty-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(128, 128, 128, 0.3);
+  color: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.cart-qty-btn:hover {
+  background: rgba(128, 128, 128, 0.5);
+}
+
+.cart-qty-btn:disabled,
+.modal-qty-input:disabled,
+.modal-actions-stacked button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.cart-row-total {
+  min-width: 70px;
+  text-align: right;
+  font-weight: 700;
+}
+
+.cart-remove-btn {
+  background: none;
+  border: none;
+  color: inherit;
+  opacity: 0.7;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.cart-remove-btn:hover {
+  opacity: 1;
+}
+
+.cart-total {
+  text-align: right;
+  font-size: 1.2rem;
+  font-weight: 700;
+  padding: 16px 0;
+}
+
+/* Checkout area revealed under the cart list (3Dream + Deckcard) */
+.checkout-section {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(128, 128, 128, 0.35);
+}
+
+/* ---- Checkout wizard (3Dream + Deckcard) -------------------------------- */
+
+/* Buttons */
+.checkout-primary-btn {
+  background: var(--accent, #DC2626);
+  color: var(--accent-contrast, #FFFFFF);
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.checkout-primary-btn:hover {
+  filter: brightness(1.1);
+}
+
+.checkout-primary-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.checkout-link-btn {
+  background: none;
+  border: none;
+  color: var(--accent, #DC2626);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+/* Progress bar */
+.checkout-steps {
+  list-style: none;
+  display: flex;
+  gap: 8px;
+  margin: 12px 0 20px;
+  padding: 0;
+}
+
+.checkout-step {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 3px solid rgba(128, 128, 128, 0.35);
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+.checkout-step.is-active,
+.checkout-step.is-done {
+  border-bottom-color: var(--accent, #DC2626);
+  opacity: 1;
+}
+
+.checkout-step-num {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: 700;
+  background: rgba(128, 128, 128, 0.35);
+}
+
+.checkout-step.is-active .checkout-step-num,
+.checkout-step.is-done .checkout-step-num {
+  background: var(--accent, #DC2626);
+  color: var(--accent-contrast, #FFFFFF);
+}
+
+@media (max-width: 550px) {
+  .checkout-step-label { display: none; }
+  .checkout-step.is-active .checkout-step-label { display: inline; }
+}
+
+/* Step panels + form layout */
+.checkout-panel h4 {
+  margin-bottom: 8px;
+}
+
+.checkout-row {
+  display: flex;
+  gap: 12px;
+}
+
+.checkout-row label {
+  flex: 1;
+}
+
+/* Delivery choices */
+.checkout-panel .checkout-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  margin-top: 10px;
+  font-weight: 400;
+  border: 1px solid rgba(128, 128, 128, 0.5);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.checkout-panel .checkout-choice.is-selected {
+  border-color: var(--accent, #DC2626);
+  background: rgba(128, 128, 128, 0.12);
+}
+
+.checkout-panel .checkout-choice input {
+  width: auto;
+  margin: 4px 0 0;
+}
+
+/* Review */
+.checkout-review-block {
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.35);
+}
+
+.checkout-review-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.checkout-text-lines {
+  font-size: 0.95rem;
+  opacity: 0.9;
+}
+
+.checkout-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 3px 0;
+}
+
+.checkout-line-sub {
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+.checkout-line-total {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(128, 128, 128, 0.35);
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+/* Pay */
+.checkout-methods {
+  display: flex;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.checkout-method {
+  flex: 1;
+  padding: 10px 16px;
+  background: transparent;
+  color: inherit;
+  border: 1px solid rgba(128, 128, 128, 0.5);
+  border-radius: 6px;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.checkout-method.is-selected {
+  border-color: var(--accent, #DC2626);
+  background: rgba(128, 128, 128, 0.15);
+  font-weight: 700;
+}
+
+.checkout-pay-btn {
+  width: 100%;
+  margin-top: 16px;
+}
+
+.checkout-demo-note {
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.checkout-error {
+  margin-top: 12px;
+  color: #F87171;
+  font-weight: 600;
+}
+
+.checkout-error[hidden] {
+  display: none;
+}
+
+/* Back / Continue */
+.checkout-nav {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+.checkout-nav [hidden] {
+  display: none;
+}
+
+/* Order confirmation (shown on the cart page after a demo order) */
+.order-confirmation {
+  margin-bottom: 20px;
+  padding: 20px;
+  border: 1px solid var(--accent, #DC2626);
+  border-radius: 8px;
+  background: rgba(128, 128, 128, 0.1);
+}
+
+.order-confirmation[hidden] {
+  display: none;
+}
+
+.order-confirmation-id {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.order-confirmation .checkout-primary-btn {
+  margin-top: 16px;
+}
+
+/* ---- 5.3 Image placeholder (shown when an item image fails to load) ----- */
+
+.item-img-alt {
+  height: 120px;
+  background: #334155;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  color: #94A3B8;
+}
+
+/* ---- 5.4 Calendar (Popkern + Deckcard) ---------------------------------- */
+
+.calendar-wrapper {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 20px;
+  border-radius: 8px;
+  margin-top: 15px;
+}
+
+.calendar-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin-bottom: 6px;
+  opacity: 0.8;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  text-align: center;
+}
+
+.cal-day {
+  padding: 12px 4px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.cal-day.has-event {
+  font-weight: bold;
+  border: 2px solid currentColor;
+}
+
+/* ---- 5.5 Empty-state message (grids and calendars with no data) -------- */
+
+.empty-message {
+  grid-column: 1 / -1;   /* span the full width when inside a .grid */
+  text-align: center;
+  opacity: 0.7;
+  padding: 24px 12px;
+}
+
+/* ---- 5.6 Modals --------------------------------------------------------- */
+
+.frosted-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.frosted-modal-overlay.hidden {
+  display: none;
+}
+
+.generic-modal-box {
+  background: #FFFFFF;
+  color: #1F2937;
+  width: 90%;
+  max-width: 450px;
+  padding: 24px;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.modal-img-placeholder {
+  height: 140px;
+  background: #E5E7EB;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  border-radius: 8px;
+  margin-bottom: 15px;
+}
+
+.modal-price {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.modal-stock {
+  font-size: 0.85rem;
+  color: #6B7280;
+  margin-bottom: 8px;
+}
+
+.toast {
+  position: fixed;
+  top: 50%;                   /* app.js moves it over the Add to Cart button */
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1100;              /* above the modal overlay (1000) */
+  max-width: 90vw;
+  padding: 14px 22px;
+  text-align: center;
+  font-weight: 600;
+  color: #166534;
+  background: #DCFCE7;
+  border: 1px solid #86EFAC;
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.toast[hidden] {
+  display: none;
+}
+
+/* Error variant (e.g. an empty form field) */
+.toast.is-error {
+  color: #991B1B;
+  background: #FEE2E2;
+  border-color: #FCA5A5;
+}
+
+.modal-qty {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.modal-qty-input {
+  width: 60px;
+  padding: 6px;
+  text-align: center;
+  font-size: 1rem;
+  border: 1px solid #CCC;
+  border-radius: 4px;
+}
+
+/* Buttons stacked vertically: Add to Cart on top, Close underneath */
+.modal-actions-stacked {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.modal-actions-stacked button {
+  width: 100%;
+  max-width: 240px;
+  margin: 0;
+  padding: 10px 16px;
+}
+
+.close-x-btn {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  cursor: pointer;
+  color: #4B5563;
+}
+
+
+/* ==========================================================================
+   6. DEMO THEMES
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   6.1 POPKERN (warm popcorn yellow)
+   -------------------------------------------------------------------------- */
+
+/* Theme */
 .popkern-theme {
   background-color: #FFFDF0;
   color: #4A3B2C;
@@ -317,21 +933,15 @@ a {
 }
 
 .popkern-theme .demo-brand,
-.popkern-theme a { color: #D97706; }
-
-.popkern-hero {
-  text-align: center;
-  padding: 40px 20px;
-  margin-bottom: 20px;
+.popkern-theme a {
+  color: #D97706;
 }
 
-.next-event-banner {
-  text-align: center;
-  background: #FEF3C7;
-  border: 1px solid #FDE68A;
-  padding: 20px;
-  border-radius: 8px;
-  margin-top: 25px;
+/* Header & logo */
+#demo-popkern .demo-logo-img {
+  max-height: 130px !important;
+  width: auto !important;
+  object-fit: contain;
 }
 
 .pk-custom-header {
@@ -350,6 +960,7 @@ a {
   flex: 1;
 }
 
+/* Dropdown menu */
 .pk-dropdown {
   position: relative;
   display: inline-block;
@@ -391,7 +1002,7 @@ a {
   top: 115%;
   background-color: #FFFDF0;
   min-width: 160px;
-  box-shadow: 0px 8px 18px rgba(0,0,0,0.12);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
   border: 1px solid #FDE68A;
   border-radius: 12px;
   z-index: 200;
@@ -423,6 +1034,23 @@ a {
   color: #B45309;
 }
 
+/* Home: hero + next-market banner */
+.popkern-hero {
+  text-align: center;
+  padding: 40px 20px;
+  margin-bottom: 20px;
+}
+
+.next-event-banner {
+  text-align: center;
+  background: #FEF3C7;
+  border: 1px solid #FDE68A;
+  padding: 20px;
+  border-radius: 8px;
+  margin-top: 25px;
+}
+
+/* Home: slideshow */
 .slideshow-container {
   position: relative;
   background: #FEF3C7;
@@ -438,7 +1066,7 @@ a {
   max-height: 350px;
   object-fit: cover;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .slide-content {
@@ -449,21 +1077,6 @@ a {
 .slide-title-header {
   white-space: pre-line;
 }
-
-.slide-dots {
-  margin-top: 15px;
-}
-
-.dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  background: #FDE68A;
-  border-radius: 50%;
-  margin: 0 4px;
-}
-
-.dot.active { background: #D97706; }
 
 .slideshow-btn {
   position: absolute;
@@ -488,6 +1101,24 @@ a {
 .prev-btn { left: 15px; }
 .next-btn { right: 15px; }
 
+.slide-dots {
+  margin-top: 15px;
+}
+
+.dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background: #FDE68A;
+  border-radius: 50%;
+  margin: 0 4px;
+}
+
+.dot.active {
+  background: #D97706;
+}
+
+/* Flavors grid (hover zoom) */
 #popkern-flavors-grid .card {
   overflow: hidden;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
@@ -508,25 +1139,7 @@ a {
   transform: scale(1.08);
 }
 
-.frosted-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.frosted-modal-overlay.hidden {
-  display: none;
-}
-
+/* Flavor detail modal */
 .popkern-modal-box {
   width: 90%;
   height: 45%;
@@ -535,7 +1148,7 @@ a {
   display: flex;
   align-items: center;
   padding: 20px;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
   box-sizing: border-box;
 }
 
@@ -562,23 +1175,37 @@ a {
   text-align: right;
 }
 
-.close-x-btn {
-  background: none;
-  border: none;
-  font-size: 2rem;
-  cursor: pointer;
-  color: #4B5563;
-}
 
-/* DEMO 2: 3DREAM THEME */
+/* --------------------------------------------------------------------------
+   6.2 3DREAM (dark blue)
+   -------------------------------------------------------------------------- */
+
+/* Theme */
 .threedream-theme {
   background-color: #0F172A;
   color: #E2E8F0;
+  --accent: #38BDF8;
+  --accent-contrast: #0F172A;
 }
 
 .threedream-theme .demo-brand,
-.threedream-theme a { color: #38BDF8; }
-.threedream-theme h1, .threedream-theme h2, .threedream-theme h3 { color: #F8FAFC; }
+.threedream-theme a {
+  color: #38BDF8;
+}
+
+.threedream-theme h1,
+.threedream-theme h2,
+.threedream-theme h3,
+.threedream-theme h4 {
+  color: #F8FAFC;
+}
+
+/* Header & logo */
+#demo-threedream .demo-logo-img {
+  max-height: 60px;
+  width: auto;
+  object-fit: contain;
+}
 
 .td-custom-header {
   display: flex;
@@ -588,6 +1215,7 @@ a {
   position: relative;
 }
 
+/* Search bar */
 .td-search-container {
   display: flex;
   align-items: center;
@@ -607,8 +1235,60 @@ a {
   font-size: 0.9rem;
 }
 
+/* Wrapper that lets the clear (×) button sit inside the search box */
+.td-search-field {
+  position: relative;
+  flex: 1;
+  display: flex;
+}
+
+.td-search-field .td-search-input {
+  padding-right: 34px;
+}
+
+.td-search-clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: 50%;
+  color: #94A3B8;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.td-search-clear:hover {
+  color: #F8FAFC;
+  background: #334155;
+}
+
+.td-search-clear[hidden] {
+  display: none;
+}
+
+/* "Showing 2 of 6 items for ..." line above the Store grid */
+.load-more-wrap {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.search-status {
+  margin-bottom: 14px;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
 .td-search-input::placeholder { color: #64748B; }
-.td-search-input:focus { border-color: #38BDF8; }
+.td-search-input:focus        { border-color: #38BDF8; }
 
 .td-search-btn {
   background-color: #38BDF8;
@@ -622,6 +1302,7 @@ a {
 
 .td-search-btn:hover { background-color: #0284C7; }
 
+/* Dropdown menu */
 .td-dropdown {
   position: relative;
   display: inline-block;
@@ -648,7 +1329,7 @@ a {
   top: 110%;
   background-color: #1E293B;
   min-width: 200px;
-  box-shadow: 0px 8px 16px rgba(0,0,0,0.4);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
   border: 1px solid #334155;
   border-radius: 8px;
   z-index: 200;
@@ -658,7 +1339,7 @@ a {
 .td-dropdown-content.show { display: block; }
 
 .td-dropdown-content a {
-  color: #E2E8F0;
+  color: #E2E8F0;   /* must stay AFTER ".threedream-theme a" above */
   padding: 12px 16px;
   text-decoration: none;
   display: block;
@@ -675,6 +1356,37 @@ a {
   color: #38BDF8;
 }
 
+/* Store grid: 3 columns, but 1 or 2 results become a centered group of normal-size cards */
+#td-items-grid {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+/* Exactly 1 result: one card-sized column, centered */
+#td-items-grid:has(> .td-card:only-child) {
+  grid-template-columns: minmax(0, 333px);
+  justify-content: center;
+}
+
+/* Exactly 2 results: two card-sized columns, centered */
+#td-items-grid:has(> .td-card:nth-child(2):last-child) {
+  grid-template-columns: repeat(2, minmax(0, 333px));
+  justify-content: center;
+}
+
+/* Tablets: 2 columns */
+@media (max-width: 900px) {
+  #td-items-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Phones: 1 column, including when there are 2 results */
+@media (max-width: 550px) {
+  #td-items-grid,
+  #td-items-grid:has(> .td-card:nth-child(2):last-child) {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Catalog cards */
 .td-card {
   background: #1E293B;
   padding: 16px;
@@ -683,28 +1395,65 @@ a {
   text-align: center;
 }
 
-.item-img-alt {
+.td-card img {
+  width: 100%;
   height: 120px;
-  background: #334155;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
+  object-fit: cover;
   border-radius: 6px;
   margin-bottom: 10px;
-  color: #94A3B8;
 }
 
-/* DEMO 3: DECKCARD THEME */
+.td-price {
+  color: #38BDF8;
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+
+/* --------------------------------------------------------------------------
+   6.3 DECKCARD (dark purple)
+   -------------------------------------------------------------------------- */
+
+/* Theme */
 .deckcard-theme {
   background-color: #18181B;
   color: #F4F4F5;
+  --accent: #A855F7;
+  --accent-contrast: #FFFFFF;
 }
 
 .deckcard-theme .demo-brand,
-.deckcard-theme a { color: #A855F7; }
-.deckcard-theme h1, .deckcard-theme h2, .deckcard-theme h3 { color: #FFFFFF; }
+.deckcard-theme a {
+  color: #A855F7;
+}
 
+.deckcard-theme h1,
+.deckcard-theme h2,
+.deckcard-theme h3,
+.deckcard-theme h4 {
+  color: #FFFFFF;
+}
+
+/* Header & logo
+   (.dc-header and .dc-hero-text are not used by templates.html right now) */
+#demo-deckcard .dc-header {
+  text-align: center;
+  padding: 40px 20px 20px 20px;
+}
+
+#demo-deckcard .demo-logo-img {
+  max-height: 70px;
+  width: auto;
+  object-fit: contain;
+}
+
+#demo-deckcard .dc-hero-text {
+  color: #A1A1AA;
+  margin-top: 10px;
+  font-size: 1.1rem;
+}
+
+/* Inventory cards */
 .dc-card {
   background: #27272A;
   border: 1px solid #3F3F46;
@@ -713,6 +1462,7 @@ a {
   text-align: center;
 }
 
+/* Account tabs */
 .dc-tabs {
   display: flex;
   gap: 10px;
@@ -736,119 +1486,85 @@ a {
 .dc-tab-content { display: none; }
 .dc-tab-content.active-tab { display: block; }
 
-/* DEMO 4: DENTRA THEME */
+/* Calendar cells (extends the shared .cal-day) */
+#dc-calendar .cal-day {
+  min-height: 75px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 6px;
+  position: relative;
+  border: 1px solid #3F3F46;
+  background: #27272A;
+  border-radius: 6px;
+}
+
+#dc-calendar .cal-day.has-event {
+  cursor: pointer;
+  border: 1px solid #A855F7;
+}
+
+#dc-calendar .cal-day.has-event:hover {
+  background: #3F3F46;
+}
+
+.dc-day-number {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #F4F4F5;
+  margin-bottom: 4px;
+}
+
+.dc-event-tag {
+  background-color: #A855F7;
+  color: #FFFFFF;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 4px;
+  border-radius: 4px;
+  margin-top: 2px;
+  width: 100%;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Event detail modal rows */
+.dc-modal-event-item {
+  border-bottom: 1px solid #E5E7EB;
+  padding: 10px 0;
+}
+
+.dc-modal-event-item:last-child {
+  border-bottom: none;
+}
+
+
+/* --------------------------------------------------------------------------
+   6.4 DENTRA (teal)
+   -------------------------------------------------------------------------- */
+
 .dentra-theme {
   background-color: #F0FDFA;
   color: #134E4A;
 }
 
 .dentra-theme .demo-brand,
-.dentra-theme a { color: #0D9488; }
-.dentra-theme h1, .dentra-theme h2, .dentra-theme h3 { color: #0F766E; }
+.dentra-theme a {
+  color: #0D9488;
+}
+
+.dentra-theme h1,
+.dentra-theme h2,
+.dentra-theme h3 {
+  color: #0F766E;
+}
 
 .dt-card {
   background: #FFFFFF;
   padding: 20px;
   border-radius: 8px;
   border: 1px solid #CCFBF1;
-}
-
-/* CALENDAR & GENERIC MODALS */
-.calendar-wrapper {
-  background: rgba(255,255,255,0.05);
-  padding: 20px;
-  border-radius: 8px;
-  margin-top: 15px;
-}
-
-.calendar-controls {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-}
-
-.calendar-weekdays {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 6px;
-  text-align: center;
-  font-weight: 700;
-  font-size: 0.85rem;
-  margin-bottom: 6px;
-  opacity: 0.8;
-}
-
-.calendar-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 6px;
-  text-align: center;
-}
-
-.cal-day {
-  padding: 12px 4px;
-  background: rgba(0,0,0,0.05);
-  border-radius: 4px;
-  font-size: 0.85rem;
-}
-
-.cal-day.has-event {
-  font-weight: bold;
-  border: 2px solid currentColor;
-}
-
-.generic-modal-box {
-  background: #FFFFFF;
-  color: #1F2937;
-  width: 90%;
-  max-width: 450px;
-  padding: 24px;
-  border-radius: 12px;
-  text-align: center;
-}
-
-.modal-img-placeholder {
-  height: 140px;
-  background: #E5E7EB;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  border-radius: 8px;
-  margin-bottom: 15px;
-}
-
-.demo-action-btn {
-  background: #DC2626;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  margin: 5px;
-}
-
-.demo-secondary-btn {
-  background: #6B7280;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  margin: 5px;
-}
-
-.demo-form label {
-  display: block;
-  margin-top: 10px;
-  font-weight: 600;
-}
-
-.demo-form input, .demo-form select, .demo-form textarea {
-  width: 100%;
-  padding: 8px;
-  margin-top: 4px;
-  border-radius: 4px;
-  border: 1px solid #CCC;
 }
