@@ -46,6 +46,10 @@ const DECKCARD_STOCK_COLUMN = 'stock_quantity';
 const PAYMENTS_DEMO_MODE = true;
 const SHIPPING_FEE = 5.99;   // demo flat rate; local pickup is free
 
+// Deckcard rewards: points earned per WHOLE dollar of items (cents ignored). This is only for the
+// "You'll earn N points" preview. The real calculation is done in the database (deckcard_rewards.sql).
+const POINTS_PER_DOLLAR = 10;
+
 
 /* ==========================================================================
    2. STATIC DATA
@@ -203,6 +207,16 @@ function formatPrice(value) {
   return value === null || value === undefined ? '' : `$${Number(value).toFixed(2)}`;
 }
 
+// Money in whole cents avoids decimal rounding surprises.
+function toCents(price) {
+  return Math.round((Number(price) || 0) * 100);
+}
+
+// Points for an amount in cents: whole dollars x 10, rounded down once per order.
+function pointsForCents(cents) {
+  return Math.floor(Math.max(cents, 0) / 100) * POINTS_PER_DOLLAR;
+}
+
 
 /* ==========================================================================
    5. SHARED UI
@@ -276,7 +290,8 @@ function setupDemoSwitcher() {
 
 // Code that runs each time a sub-page is opened (keyed by the page's element id).
 const pageEnterHooks = {
-  'td-inquiries': () => resetInquiryForm()
+  'td-inquiries': () => resetInquiryForm(),
+  'dc-account': () => showDeckcardAccountHome() // Account opens on login, or the member's details if signed in
 };
 
 // Code that runs when the visitor moves away from a sub-page.
@@ -405,6 +420,10 @@ function getCartCount(type) {
   return cart.items[type].reduce((sum, line) => sum + line.qty, 0);
 }
 
+function getCartCents(type) {
+  return cart.items[type].reduce((sum, line) => sum + toCents(line.price) * line.qty, 0);
+}
+
 function getCartTotal(type) {
   return cart.items[type].reduce((sum, line) => sum + (Number(line.price) || 0) * line.qty, 0);
 }
@@ -476,7 +495,10 @@ function renderCart(type) {
   list.innerHTML = '';
 
   if (lines.length === 0) {
-    list.appendChild(createEmptyMessage('Your cart is empty.'));
+    // Right after an order the thank-you panel is showing, so skip the "empty" note.
+    const confirmation = byId(ui.confirmation);
+    const showingConfirmation = confirmation && !confirmation.hidden;
+    if (!showingConfirmation) list.appendChild(createEmptyMessage('Your cart is empty.'));
     if (checkoutBtn) checkoutBtn.hidden = true;
     if (checkoutSection) checkoutSection.hidden = true;
     return;
@@ -488,6 +510,9 @@ function renderCart(type) {
   total.className = 'cart-total';
   total.textContent = `Total: ${formatPrice(getCartTotal(type))}`;
   list.appendChild(total);
+
+  const pointsNote = createPointsNote(type, getCartCents(type));
+  if (pointsNote) list.appendChild(pointsNote);
 
   // Show the Checkout button unless the checkout area is already open.
   if (checkoutBtn) checkoutBtn.hidden = !!(checkoutSection && !checkoutSection.hidden);
@@ -610,6 +635,23 @@ function showToast(text, anchorRect, { variant = 'success', above = false, durat
   toastTimer = setTimeout(() => { toast.hidden = true; }, duration);
 }
 
+// Checks that each listed field has text (spaces only counts as empty). On the first empty
+// one it shows a red "<Label> cannot be empty." popup above it, focuses it, and returns false.
+function validateRequiredFields(form, fieldIds) {
+  for (const id of fieldIds) {
+    const field = byId(id);
+    if (field.value.trim() !== '') continue;
+
+    const label = form.querySelector(`label[for="${id}"]`).textContent.trim();
+    showToast(`${label} cannot be empty.`, field.getBoundingClientRect(), {
+      variant: 'error', above: true, duration: 3000
+    });
+    field.focus();
+    return false;
+  }
+  return true;
+}
+
 function setupItemModal() {
   const modal = byId('generic-item-modal');
   const addBtn = byId('gen-modal-add');
@@ -654,8 +696,8 @@ function setupItemModal() {
 const CHECKOUT_STEPS = ['Contact', 'Delivery', 'Review', 'Pay'];
 
 const checkout = {
-  '3dream':  { root: null, step: 1, delivery: 'pickup', payMethod: 'card' },
-  deckcard:  { root: null, step: 1, delivery: 'pickup', payMethod: 'card' }
+  '3dream':  { root: null, step: 1, delivery: 'pickup', payMethod: 'card', voucherId: null },
+  deckcard:  { root: null, step: 1, delivery: 'pickup', payMethod: 'card', voucherId: null }
 };
 
 // ---- Payment providers (PLACEHOLDERS) ----
@@ -775,14 +817,24 @@ function checkoutTemplate(type) {
 
 // ---- Order data ----
 
+// The voucher picked in the Review step (Deckcard members only), or null.
+function getSelectedVoucher(type) {
+  const id = checkout[type].voucherId;
+  if (type !== 'deckcard' || id === null || !account.user) return null;
+  return account.vouchers.find(v => v.id === id && v.status === 'active') || null;
+}
+
 // Everything about the order in one object (also what a real payment call would receive).
+// Money is worked out in whole cents.
 function buildOrder(type) {
   const root = checkout[type].root;
   const value = name => root.querySelector(`[name="${name}"]`).value.trim();
   const method = checkout[type].delivery;
 
-  const subtotal = getCartTotal(type);
-  const shipping = method === 'shipping' ? SHIPPING_FEE : 0;
+  const merchCents = getCartCents(type);
+  const voucher = getSelectedVoucher(type);
+  const discountCents = voucher ? Math.min(voucher.value_cents, merchCents) : 0;
+  const shippingCents = method === 'shipping' ? toCents(SHIPPING_FEE) : 0;
 
   return {
     type,
@@ -794,9 +846,11 @@ function buildOrder(type) {
         : null
     },
     lines: cart.items[type].map(line => ({ ...line })),
-    subtotal,
-    shipping,
-    total: subtotal + shipping
+    subtotal: merchCents / 100,
+    voucher: voucher ? { id: voucher.id, code: voucher.code } : null,
+    discount: discountCents / 100,
+    shipping: shippingCents / 100,
+    total: (merchCents - discountCents + shippingCents) / 100
   };
 }
 
@@ -819,11 +873,12 @@ function createOrderLines(order) {
     box.appendChild(row);
   });
 
-  const totals = [
-    ['Subtotal', formatPrice(order.subtotal)],
+  const totals = [['Subtotal', formatPrice(order.subtotal)]];
+  if (order.discount > 0) totals.push([`Voucher ${order.voucher.code}`, `−${formatPrice(order.discount)}`]);
+  totals.push(
     [order.delivery.method === 'shipping' ? 'Shipping' : 'Local pickup', order.shipping ? formatPrice(order.shipping) : 'Free'],
     ['Total', formatPrice(order.total)]
-  ];
+  );
   totals.forEach(([label, amount], i) => {
     const row = createEl('div', i === totals.length - 1 ? 'checkout-line checkout-line-total' : 'checkout-line checkout-line-sub');
     row.append(createEl('span', '', label), createEl('span', '', amount));
@@ -852,16 +907,65 @@ function createReviewBlock(title, contentEl, onEdit) {
   return block;
 }
 
+// "You'll earn N points" (members) or "Log in to earn N points" (guests). Deckcard only.
+// `cents` = item total after any voucher; shipping never earns points.
+function createPointsNote(type, cents) {
+  if (type !== 'deckcard') return null;
+  const points = pointsForCents(cents);
+  if (points === 0) return null;
+
+  const note = createEl('p', 'checkout-points-note');
+  if (account.user) {
+    note.textContent = `You’ll earn ${points.toLocaleString()} points with this order.`;
+  } else {
+    note.append(`Log in to earn ${points.toLocaleString()} points with this order. `);
+    const link = createEl('button', 'checkout-link-btn', 'Log in or create an account');
+    link.type = 'button';
+    link.addEventListener('click', () => {
+      document.querySelector('.dc-nav-link[data-page="account"]').click();
+    });
+    note.appendChild(link);
+  }
+  return note;
+}
+
+// A drop-down of the member's unused vouchers (Deckcard members who have any).
+function createVoucherPicker(type) {
+  if (type !== 'deckcard' || !account.user) return null;
+  const vouchers = account.vouchers.filter(v => v.status === 'active');
+  if (vouchers.length === 0) return null;
+
+  const select = createEl('select', 'checkout-voucher-select');
+  select.setAttribute('aria-label', 'Apply a voucher');
+  select.appendChild(new Option('No voucher', ''));
+  vouchers.forEach(v => select.appendChild(new Option(`${formatPrice(v.value_cents / 100)} off (${v.code})`, String(v.id))));
+
+  const selected = getSelectedVoucher(type);
+  select.value = selected ? String(selected.id) : '';
+  select.addEventListener('change', () => {
+    checkout[type].voucherId = select.value === '' ? null : Number(select.value);
+    renderCheckoutReview(type);
+  });
+  return select;
+}
+
 function renderCheckoutReview(type) {
   const order = buildOrder(type);
   const box = checkout[type].root.querySelector('[data-role="review"]');
   box.textContent = '';
-  box.append(
-    createReviewBlock('Items', createOrderLines(order)),
+
+  const blocks = [createReviewBlock('Items', createOrderLines(order))];
+  const voucherPicker = createVoucherPicker(type);
+  if (voucherPicker) blocks.push(createReviewBlock('Voucher', voucherPicker));
+  blocks.push(
     createReviewBlock('Contact', createTextLines([order.contact.name, order.contact.email, order.contact.phone]),
       () => showCheckoutStep(type, 1)),
     createReviewBlock('Delivery', createDeliveryLines(order), () => showCheckoutStep(type, 2))
   );
+  box.append(...blocks);
+
+  const pointsNote = createPointsNote(type, toCents(order.subtotal) - toCents(order.discount));
+  if (pointsNote) box.appendChild(pointsNote);
 }
 
 function updatePayButtons(type) {
@@ -964,7 +1068,14 @@ async function submitPayment(type, method) {
     const result = method === 'card'
       ? await processCardPayment(order)
       : await processPayPalPayment(order);
-    completeOrder(type, order, result.orderId, method);
+
+    // Demo: a signed-in Deckcard member's order is recorded in Supabase so the points arrive.
+    // (With real payments, your payment webhook does this instead: see deckcard_rewards.sql.)
+    let saved = null;
+    if (PAYMENTS_DEMO_MODE && type === 'deckcard' && account.user && supabaseClient) {
+      saved = await saveMemberOrder(order);
+    }
+    completeOrder(type, order, result.orderId, method, saved);
   } catch (err) {
     errorEl.textContent = err.message || 'Payment could not be completed. Please try again.';
     errorEl.hidden = false;
@@ -972,12 +1083,30 @@ async function submitPayment(type, method) {
   }
 }
 
-function hideOrderConfirmation(type) {
-  const box = byId(cart.ui[type].confirmation);
-  if (box) box.hidden = true;
+// DEMO ONLY: records a member's pretend-paid order; the database prices it, applies the voucher
+// and adds the points. Returns the saved order row.
+async function saveMemberOrder(order) {
+  const { data, error } = await supabaseClient.rpc('demo_place_deckcard_order', {
+    p_items: order.lines.map(line => ({ name: line.name, qty: line.qty })),
+    p_voucher_id: order.voucher ? order.voucher.id : null,
+    p_shipping: order.delivery.method === 'shipping'
+  });
+  if (error) {
+    // Messages we raise on purpose in the database (code P0001) are safe to show as they are.
+    throw new Error(error.code === 'P0001' ? error.message : 'We couldn’t save your order. Please try again.');
+  }
+  return data;
 }
 
-function completeOrder(type, order, orderId, method) {
+function hideOrderConfirmation(type) {
+  const box = byId(cart.ui[type].confirmation);
+  if (!box || box.hidden) return;
+
+  box.hidden = true;
+  renderCart(type);   // brings back "Your cart is empty." if the cart is empty
+}
+
+function completeOrder(type, order, orderId, method, saved = null) {
   const ui = cart.ui[type];
   const box = byId(ui.confirmation);
   if (!box) return;
@@ -990,11 +1119,24 @@ function completeOrder(type, order, orderId, method) {
     if (itemsLink) itemsLink.click();
   });
 
+  // Deckcard: tell members what they earned, and guests what they missed.
+  let pointsText = '';
+  if (type === 'deckcard') {
+    if (saved) {
+      pointsText = saved.points_earned > 0
+        ? `You earned ${saved.points_earned.toLocaleString()} points with this order!`
+        : 'This order earned no points. Points are earned on whole dollars spent on items.';
+    } else if (!account.user) {
+      pointsText = 'Log in next time to earn points on your orders.';
+    }
+  }
+
   box.textContent = '';
   box.append(
     createEl('h3', '', `Thank you, ${order.contact.name}!`),
     createEl('p', 'order-confirmation-id', `Order number: ${orderId}`),
     createEl('p', '', `Paid with ${method === 'card' ? 'card' : 'PayPal'} (demo). In a live store, a confirmation email would be sent to ${order.contact.email}.`),
+    ...(pointsText ? [createEl('p', 'order-confirmation-points', pointsText)] : []),
     createReviewBlock('Order summary', createOrderLines(order)),
     createReviewBlock('Delivery', createDeliveryLines(order)),
     createEl('p', 'checkout-demo-note', 'This was a demo order. No payment was taken and nothing was saved.'),
@@ -1005,6 +1147,11 @@ function completeOrder(type, order, orderId, method) {
   cart.items[type] = [];
   renderCart(type);        // empties the cart list and closes the checkout area
   buildCheckout(type);     // fresh wizard (clears everything typed, including demo card fields)
+
+  if (saved) {             // the member's points, vouchers and history changed
+    account.loaded = false;
+    loadMemberData();
+  }
   box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
@@ -1016,7 +1163,7 @@ function buildCheckout(type) {
   if (!root) return;
 
   root.innerHTML = checkoutTemplate(type);
-  Object.assign(state, { root, step: 1, delivery: 'pickup', payMethod: 'card' });
+  Object.assign(state, { root, step: 1, delivery: 'pickup', payMethod: 'card', voucherId: null });
 
   const stepsList = root.querySelector('[data-role="steps"]');
   CHECKOUT_STEPS.forEach((label, i) => {
@@ -1664,17 +1811,7 @@ function setupThreeDreamInquiryForm() {
   form.addEventListener('submit', e => {
     e.preventDefault();
 
-    for (const id of INQUIRY_FIELD_IDS) {
-      const field = byId(id);
-      if (field.value.trim() !== '') continue;
-
-      const label = form.querySelector(`label[for="${id}"]`).textContent.trim();
-      showToast(`${label} cannot be empty.`, field.getBoundingClientRect(), {
-        variant: 'error', above: true, duration: 3000
-      });
-      field.focus();
-      return;
-    }
+    if (!validateRequiredFields(form, INQUIRY_FIELD_IDS)) return;
 
     // Demo: nothing is sent anywhere.
     hideToast();
@@ -1752,19 +1889,494 @@ function setupDeckcardTabs() {
 }
 
 
-/* ---- 8.3 Login toggle (demo only) --------------------------------------- */
+/* ---- 8.3 Member accounts (Supabase Auth) ---------------------------------- */
 
-function setupDeckcardLogin() {
-  const loginBtn = byId('dc-login-toggle');
-  if (!loginBtn) return;
+// Supabase Auth does the real work (passwords, sessions, emails). Signed-in members stay
+// signed in on this browser until they log out. Their name, member-since date, points and
+// tier come from the deckcard_profiles / deckcard_rewards tables (see deckcard_accounts.sql).
 
-  let isLoggedIn = false;
-  loginBtn.addEventListener('click', e => {
-    e.preventDefault();
-    isLoggedIn = !isLoggedIn;
-    loginBtn.textContent = isLoggedIn ? 'Logout' : 'Login';
-    alert(isLoggedIn ? 'Logged in successfully!' : 'Logged out.');
+// The Account page has several screens; only one shows at a time:
+//   login, signup, forgot (ask for a reset email), reset (choose a new password),
+//   notice (a "check your email" style message), account (signed in)
+const ACCOUNT_VIEWS = ['login', 'signup', 'forgot', 'reset', 'notice', 'account'];
+const ACCOUNT_FORM_IDS = ['dc-login-form', 'dc-signup-form', 'dc-forgot-form', 'dc-reset-form'];
+const MIN_PASSWORD_LENGTH = 8;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const account = {
+  user: null,       // the signed-in Supabase user, or null
+  view: 'login',    // which screen is showing
+  loaded: false,    // true once this member's profile + rewards have been fetched
+  rewards: null,    // { points, lifetime_points, tier }
+  tiers: [],        // [{ name, min_lifetime_points }]
+  options: [],      // voucher levels a member can redeem
+  vouchers: [],     // this member's vouchers (active and used)
+  ledger: []        // this member's recent points history
+};
+
+// ---- Screens ----
+
+function showAccountView(name) {
+  account.view = name;
+  ACCOUNT_VIEWS.forEach(view => { byId(`dc-${view}-view`).hidden = view !== name; });
+  if (name === 'account') {
+    document.querySelector('.dc-tab-btn[data-tab="dc-tab-details"]').click();   // start on User Details
+  }
+}
+
+function showAccountNotice(title, text) {
+  byId('dc-notice-title').textContent = title;
+  byId('dc-notice-text').textContent = text;
+  showAccountView('notice');
+}
+
+// Opening the Account page: the member's details if signed in, otherwise the login screen.
+function showDeckcardAccountHome() {
+  if (!byId('dc-login-form')) return;
+
+  hideToast();
+  ACCOUNT_FORM_IDS.forEach(id => byId(id).reset());
+  showAccountView(account.user ? 'account' : 'login');
+  if (account.user) loadMemberData();
+}
+
+// Jumps to Deckcard > Account (used when an emailed link brings the visitor back to the site).
+function goToDeckcardAccountPage() {
+  document.querySelector('.demo-btn[data-target="deckcard"]').click();
+  document.querySelector('.dc-nav-link[data-page="account"]').click();
+}
+
+// ---- Member data ----
+
+const setText = (id, text) => { byId(id).textContent = text; };
+
+// Reads this member's own rows (the database only ever returns their own) and fills in the tabs.
+async function loadMemberData() {
+  const user = account.user;
+  if (!user || !supabaseClient) return;
+
+  const db = supabaseClient;
+  const [profileResult, rewardsResult, tiersResult, optionsResult, vouchersResult, ledgerResult] = await Promise.all([
+    db.from('deckcard_profiles').select('display_name, created_at').eq('id', user.id).maybeSingle(),
+    db.from('deckcard_rewards').select('points, lifetime_points, tier').eq('user_id', user.id).maybeSingle(),
+    db.from('deckcard_tiers').select('name, min_lifetime_points').order('min_lifetime_points', { ascending: true }),
+    db.from('deckcard_voucher_options').select('id, label, points_cost, value_cents').eq('active', true).order('points_cost', { ascending: true }),
+    db.from('deckcard_vouchers').select('id, code, value_cents, status, created_at').eq('user_id', user.id).order('created_at', { ascending: false }),
+    db.from('deckcard_points_ledger').select('points, kind, note, created_at').eq('user_id', user.id).order('created_at', { ascending: false }).limit(20)
+  ]);
+  [['profile', profileResult], ['rewards', rewardsResult], ['tiers', tiersResult],
+   ['voucher options', optionsResult], ['vouchers', vouchersResult], ['points history', ledgerResult]]
+    .forEach(([label, result]) => {
+      if (result.error) console.warn(`Could not load member ${label}:`, result.error.message);
+    });
+
+  if (!account.user || account.user.id !== user.id) return;   // signed out / switched while loading
+
+  const profile = profileResult.data;
+  account.rewards = rewardsResult.data;
+  account.tiers = tiersResult.data || [];
+  account.options = optionsResult.data || [];
+  account.vouchers = vouchersResult.data || [];
+  account.ledger = ledgerResult.data || [];
+
+  setText('dc-member-name', (profile && profile.display_name) || user.email);
+  setText('dc-member-email', user.email);
+  setText('dc-member-since', profile ? String(new Date(profile.created_at).getFullYear()) : '—');
+  renderRewards();
+  renderVoucherList();
+  renderPointsHistory();
+  account.loaded = true;
+
+  renderCart('deckcard');   // the checkout's voucher picker and points note depend on who is signed in
+}
+
+// ---- Rewards screens ----
+
+const formatDate = iso => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+function describeTierProgress() {
+  const rewards = account.rewards;
+  if (!rewards || account.tiers.length === 0) return '';
+
+  const lifetime = Number(rewards.lifetime_points) || 0;
+  const next = account.tiers.find(tier => tier.min_lifetime_points > lifetime);
+  return next
+    ? `${lifetime.toLocaleString()} of ${next.min_lifetime_points.toLocaleString()} lifetime points to reach ${next.name}.`
+    : 'You’ve reached our top tier!';
+}
+
+// Redeeming spends points for good, so the first click asks "Confirm?" and the second one does it.
+function createRedeemButton(option, canAfford) {
+  const button = createEl('button', 'demo-action-btn', 'Redeem');
+  button.type = 'button';
+  button.disabled = !canAfford;
+
+  let resetTimer = null;
+  button.addEventListener('click', async () => {
+    if (!button.dataset.armed) {
+      button.dataset.armed = '1';
+      button.textContent = 'Confirm?';
+      resetTimer = setTimeout(() => { delete button.dataset.armed; button.textContent = 'Redeem'; }, 4000);
+      return;
+    }
+    clearTimeout(resetTimer);
+    delete button.dataset.armed;
+
+    const buttonRect = button.getBoundingClientRect();
+    button.textContent = 'Redeem';   // so the busy wrapper restores the normal label afterwards
+    await runWithBusyButton(button, async () => {
+      const { data, error } = await supabaseClient.rpc('redeem_deckcard_voucher', { p_option_id: option.id });
+      if (error) {
+        showButtonError(button, error.code === 'P0001' ? error.message : 'Could not redeem. Please try again.');
+        await loadMemberData();      // the balance may have changed
+        return;
+      }
+      showToast(`Voucher ${data.code} added to My Vouchers.`, buttonRect);
+      await loadMemberData();
+    });
   });
+  return button;
+}
+
+function renderRewards() {
+  const rewards = account.rewards;
+  setText('dc-member-points', rewards ? `${Number(rewards.points).toLocaleString()} PTS` : '—');
+  setText('dc-member-tier', rewards ? rewards.tier : '—');
+  setText('dc-tier-progress', describeTierProgress());
+
+  const box = byId('dc-voucher-options');
+  box.textContent = '';
+  if (account.options.length === 0) {
+    box.appendChild(createEmptyMessage('No vouchers available right now.'));
+    return;
+  }
+  account.options.forEach(option => {
+    const row = createEl('div', 'dc-reward-row');
+    const info = createEl('div');
+    info.append(
+      createEl('strong', '', option.label),
+      createEl('div', 'dc-reward-cost', `${option.points_cost.toLocaleString()} points`)
+    );
+    row.append(info, createRedeemButton(option, !!rewards && rewards.points >= option.points_cost));
+    box.appendChild(row);
+  });
+}
+
+function renderVoucherList() {
+  const box = byId('dc-voucher-list');
+  box.textContent = '';
+  if (account.vouchers.length === 0) {
+    box.appendChild(createEmptyMessage('No vouchers yet. Redeem points on the Rewards tab to get one.'));
+    return;
+  }
+  // Unused vouchers first
+  const vouchers = [...account.vouchers].sort((a, b) => (a.status === 'active' ? 0 : 1) - (b.status === 'active' ? 0 : 1));
+  vouchers.forEach(voucher => {
+    const used = voucher.status !== 'active';
+    const row = createEl('div', used ? 'dc-reward-row dc-reward-used' : 'dc-reward-row');
+    const info = createEl('div');
+    info.append(
+      createEl('div', 'dc-voucher-code', voucher.code),
+      createEl('div', 'dc-reward-cost', `${formatPrice(voucher.value_cents / 100)} off · ${used ? 'Used' : 'Ready to use at checkout'}`)
+    );
+    row.append(info, createEl('div', 'dc-reward-cost', formatDate(voucher.created_at)));
+    box.appendChild(row);
+  });
+}
+
+function renderPointsHistory() {
+  const box = byId('dc-points-history');
+  box.textContent = '';
+  if (account.ledger.length === 0) {
+    box.appendChild(createEmptyMessage('No points activity yet.'));
+    return;
+  }
+  account.ledger.forEach(entry => {
+    const labels = {
+      earn: 'Earned',
+      redeem: 'Redeemed',
+      refund: 'Taken back',
+      adjust: 'Adjustment'
+    };
+    const title = `${labels[entry.kind] || 'Activity'}${entry.note ? `: ${entry.note}` : ''}`;
+
+    const row = createEl('div', 'dc-reward-row');
+    const info = createEl('div');
+    info.append(createEl('div', '', title), createEl('div', 'dc-reward-cost', formatDate(entry.created_at)));
+    row.append(info, createEl('div', 'dc-history-points', `${entry.points > 0 ? '+' : '−'}${Math.abs(entry.points).toLocaleString()}`));
+    box.appendChild(row);
+  });
+}
+
+// Called whenever we learn who (if anyone) is signed in.
+async function applySession(session) {
+  if (!session) {
+    Object.assign(account, { user: null, loaded: false, rewards: null, options: [], vouchers: [], ledger: [] });
+    checkout.deckcard.voucherId = null;
+    if (account.view === 'account' || account.view === 'reset') showAccountView('login');
+    renderCart('deckcard');   // the points note switches to the "log in to earn" version
+    return;
+  }
+
+  const sameMember = account.user && account.user.id === session.user.id;
+
+  // Accounts are shared by every demo site in this Supabase project, so make sure this person
+  // really has a Deckcard account (a Deckcard profile row). If not, sign them back out.
+  if (!sameMember) {
+    const { data: profile, error } = await supabaseClient
+      .from('deckcard_profiles').select('id').eq('id', session.user.id).maybeSingle();
+    if (error) {
+      console.warn('Could not check the Deckcard account:', error.message);
+    } else if (!profile) {
+      await supabaseClient.auth.signOut();
+      await applySession(null);
+      showAccountNotice('No Deckcard account', 'That email is not registered with Deckcard. Create a Deckcard account to continue.');
+      return;
+    }
+  }
+
+  account.user = session.user;
+  if (!sameMember || !account.loaded) await loadMemberData();
+
+  // Signed in while looking at a log-in style screen: show the account instead.
+  if (['login', 'signup', 'forgot', 'notice'].includes(account.view)) showAccountView('account');
+}
+
+// ---- Messages ----
+
+function showFieldError(fieldId, message) {
+  const field = byId(fieldId);
+  showToast(message, field.getBoundingClientRect(), { variant: 'error', above: true, duration: 3000 });
+  field.focus();
+}
+
+function showButtonError(button, message) {
+  showToast(message, button.getBoundingClientRect(), { variant: 'error', above: true, duration: 4000 });
+}
+
+// Turns Supabase's error into a message a visitor can act on.
+function friendlyAuthError(error) {
+  const code = error.code || '';
+  const message = (error.message || '').toLowerCase();
+
+  if (code === 'invalid_credentials' || message.includes('invalid login credentials')) {
+    return 'Incorrect email or password.';
+  }
+  if (code === 'email_not_confirmed' || message.includes('email not confirmed')) {
+    return 'Please confirm your email first. Check your inbox for the link.';
+  }
+  if (code === 'user_already_exists' || message.includes('already registered')) {
+    return 'An account with this email already exists. Try logging in.';
+  }
+  if (code === 'weak_password' || message.includes('password should')) {
+    return 'That password is too weak. Try a longer one.';
+  }
+  if (code.includes('rate_limit') || message.includes('rate limit') || error.status === 429) {
+    return 'Too many attempts. Please wait a moment and try again.';
+  }
+  console.warn('Auth error:', error);
+  return 'Something went wrong. Please try again.';
+}
+
+// ---- Form checks ----
+
+function validateEmailField(fieldId) {
+  if (EMAIL_PATTERN.test(byId(fieldId).value.trim())) return true;
+  showFieldError(fieldId, 'Enter a valid email address.');
+  return false;
+}
+
+function validateNewPassword(passwordId, confirmId) {
+  const password = byId(passwordId).value;
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    showFieldError(passwordId, `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+    return false;
+  }
+  if (password !== byId(confirmId).value) {
+    showFieldError(confirmId, 'Passwords do not match.');
+    return false;
+  }
+  return true;
+}
+
+// Where emailed links (confirm email / reset password) should send the visitor back to.
+// Must also be listed under Redirect URLs in Supabase (see deckcard_accounts.sql).
+// Opened straight from a file there is no web address, so Supabase's Site URL is used.
+function getAuthRedirectUrl() {
+  if (!/^https?:$/.test(window.location.protocol)) return undefined;
+  return `${window.location.origin}${window.location.pathname}?demo=deckcard`;
+}
+
+// Disables the button and shows "Please wait…" while a request runs.
+async function runWithBusyButton(button, task) {
+  const label = button.textContent;
+  button.disabled = true;
+  button.textContent = 'Please wait…';
+  try {
+    await task();
+  } catch (err) {
+    console.warn('Account request failed:', err);
+    showButtonError(button, 'Something went wrong. Please try again.');
+  } finally {
+    button.disabled = false;
+    button.textContent = label;
+  }
+}
+
+// ---- Setup ----
+
+function onAccountFormSubmit(formId, handler) {
+  const form = byId(formId);
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const button = form.querySelector('button[type="submit"]');
+    if (button.disabled) return;
+    if (!supabaseClient) {
+      showButtonError(button, 'Accounts are unavailable right now.');
+      return;
+    }
+    handler(form, button);
+  });
+}
+
+function setupAccountForms() {
+  // Log in
+  onAccountFormSubmit('dc-login-form', async (form, button) => {
+    if (!validateRequiredFields(form, ['dc-login-email', 'dc-login-password'])) return;
+
+    await runWithBusyButton(button, async () => {
+      const { data, error } = await supabaseClient.auth.signInWithPassword({
+        email: byId('dc-login-email').value.trim(),
+        password: byId('dc-login-password').value
+      });
+      if (error) { showButtonError(button, friendlyAuthError(error)); return; }
+
+      hideToast();
+      form.reset();
+      await applySession(data.session);
+    });
+  });
+
+  // Create an account
+  onAccountFormSubmit('dc-signup-form', async (form, button) => {
+    const ids = ['dc-signup-name', 'dc-signup-email', 'dc-signup-password', 'dc-signup-confirm'];
+    if (!validateRequiredFields(form, ids)) return;
+    if (!validateEmailField('dc-signup-email')) return;
+    if (!validateNewPassword('dc-signup-password', 'dc-signup-confirm')) return;
+
+    await runWithBusyButton(button, async () => {
+      const email = byId('dc-signup-email').value.trim();
+      // "site" tells the shared sign-up trigger which demo site this account is for.
+      const options = { data: { display_name: byId('dc-signup-name').value.trim(), site: 'deckcard' } };
+      const redirectUrl = getAuthRedirectUrl();
+      if (redirectUrl) options.emailRedirectTo = redirectUrl;
+
+      const { data, error } = await supabaseClient.auth.signUp({
+        email,
+        password: byId('dc-signup-password').value,
+        options
+      });
+      if (error) { showButtonError(button, friendlyAuthError(error)); return; }
+
+      hideToast();
+      form.reset();
+
+      if (data.session) {                       // email confirmation is off: signed in right away
+        await applySession(data.session);
+        return;
+      }
+      // With confirmation on, Supabase answers an already-registered email with a user that has
+      // no identities (so strangers can't discover who has an account).
+      const alreadyRegistered = data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0;
+      if (alreadyRegistered) {
+        showAccountNotice('Account already exists', `There is already an account for ${email}. Try logging in, or reset your password.`);
+        return;
+      }
+      showAccountNotice('Check your email', `We sent a confirmation link to ${email}. Click it to finish creating your account, then log in.`);
+    });
+  });
+
+  // Forgot password: always shows the same message, so it never reveals who has an account
+  onAccountFormSubmit('dc-forgot-form', async (form, button) => {
+    if (!validateRequiredFields(form, ['dc-forgot-email'])) return;
+    if (!validateEmailField('dc-forgot-email')) return;
+
+    await runWithBusyButton(button, async () => {
+      const email = byId('dc-forgot-email').value.trim();
+      const redirectTo = getAuthRedirectUrl();
+      const { error } = await supabaseClient.auth.resetPasswordForEmail(email, redirectTo ? { redirectTo } : undefined);
+      if (error) { showButtonError(button, friendlyAuthError(error)); return; }
+
+      hideToast();
+      form.reset();
+      showAccountNotice('Check your email', `If there is an account for ${email}, we’ve sent a link to reset the password.`);
+    });
+  });
+
+  // Choose a new password (after following the emailed link)
+  onAccountFormSubmit('dc-reset-form', async (form, button) => {
+    if (!validateRequiredFields(form, ['dc-reset-password', 'dc-reset-confirm'])) return;
+    if (!validateNewPassword('dc-reset-password', 'dc-reset-confirm')) return;
+
+    await runWithBusyButton(button, async () => {
+      const { error } = await supabaseClient.auth.updateUser({ password: byId('dc-reset-password').value });
+      if (error) { showButtonError(button, friendlyAuthError(error)); return; }
+
+      const buttonRect = button.getBoundingClientRect();
+      form.reset();
+      showAccountView('account');
+      showToast('Password updated.', buttonRect);
+    });
+  });
+}
+
+function setupAccountLinks() {
+  // Buttons that just switch screens (Forgot password?, Create an account, Back to log in)
+  document.querySelectorAll('[data-account-view]').forEach(link => {
+    link.addEventListener('click', () => {
+      hideToast();
+      showAccountView(link.dataset.accountView);
+    });
+  });
+
+  byId('dc-logout-btn').addEventListener('click', async e => {
+    const button = e.currentTarget;
+    if (!supabaseClient) return;
+
+    await runWithBusyButton(button, async () => {
+      const { error } = await supabaseClient.auth.signOut();
+      if (error) { showButtonError(button, 'Could not log out. Please try again.'); return; }
+      await applySession(null);
+    });
+  });
+}
+
+// Supabase tells us when someone signs in or out (also in another tab), and when they arrive
+// from a password-reset email.
+function watchAuthChanges() {
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    // Don't call Supabase from inside this callback (it can lock up); hand off to a timer.
+    setTimeout(async () => {
+      if (event === 'TOKEN_REFRESHED') return;
+
+      if (event === 'PASSWORD_RECOVERY') {
+        await applySession(session);
+        goToDeckcardAccountPage();
+        showAccountView('reset');
+        return;
+      }
+      await applySession(session);
+    }, 0);
+  });
+}
+
+function setupDeckcardAccount() {
+  if (!byId('dc-login-form')) return;
+
+  setupAccountForms();
+  setupAccountLinks();
+  showAccountView('login');
+  if (supabaseClient) watchAuthChanges();
 }
 
 
@@ -1824,7 +2436,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupGlobalDropdownClose();
 
   setupDeckcardTabs();
-  setupDeckcardLogin();
+  setupDeckcardAccount();
   setupDeckcardEventModal();
 
   // --- Data (these requests all run at once) ---

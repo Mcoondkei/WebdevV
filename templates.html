@@ -214,7 +214,6 @@
         <a href="#" class="dc-nav-link" data-page="items">Store</a>
         <a href="#" class="dc-nav-link" data-page="cart">Cart (<span class="dc-cart-count">0</span>)</a>
         <a href="#" class="dc-nav-link" data-page="account">Account</a>
-        <a href="#" id="dc-login-toggle" class="demo-auth-btn">Login</a>
       </nav>
     </header>
 
@@ -263,21 +262,108 @@
       <div id="dc-checkout-section" class="checkout-section" hidden></div>
     </div>
 
-    <!-- Deckcard: Account -->
+    <!-- Deckcard: Account. Only one screen below shows at a time (app.js: showAccountView):
+         login, signup, forgot, reset, notice, or account (signed in) -->
     <div id="dc-account" class="dc-page">
-      <h2>Member Account</h2>
-      <div class="dc-tabs">
-        <button class="dc-tab-btn active" data-tab="dc-tab-details">User Details</button>
-        <button class="dc-tab-btn" data-tab="dc-tab-rewards">Rewards Details</button>
+
+      <!-- Log in -->
+      <div id="dc-login-view" class="dc-login">
+        <form id="dc-login-form" class="dc-login-card demo-form" novalidate>
+          <h2>Member Login</h2>
+          <label for="dc-login-email">Email</label>
+          <input type="email" id="dc-login-email" autocomplete="email" placeholder="you@example.com">
+          <label for="dc-login-password">Password</label>
+          <input type="password" id="dc-login-password" autocomplete="current-password">
+          <button type="submit" class="checkout-primary-btn dc-login-btn">Log in</button>
+          <p class="dc-login-links">
+            <button type="button" class="checkout-link-btn" data-account-view="forgot">Forgot password?</button>
+            <button type="button" class="checkout-link-btn" data-account-view="signup">Create an account</button>
+          </p>
+        </form>
       </div>
-      <div id="dc-tab-details" class="dc-tab-content active-tab">
-        <p><strong>Member Name:</strong> Alex Rivera</p>
-        <p><strong>Email:</strong> alex.rivera@example.com</p>
-        <p><strong>Member Since:</strong> 2024</p>
+
+      <!-- Create an account -->
+      <div id="dc-signup-view" class="dc-login" hidden>
+        <form id="dc-signup-form" class="dc-login-card demo-form" novalidate>
+          <h2>Create Account</h2>
+          <label for="dc-signup-name">Name</label>
+          <input type="text" id="dc-signup-name" autocomplete="name">
+          <label for="dc-signup-email">Email</label>
+          <input type="email" id="dc-signup-email" autocomplete="email" placeholder="you@example.com">
+          <label for="dc-signup-password">Password</label>
+          <input type="password" id="dc-signup-password" autocomplete="new-password">
+          <label for="dc-signup-confirm">Confirm password</label>
+          <input type="password" id="dc-signup-confirm" autocomplete="new-password">
+          <button type="submit" class="checkout-primary-btn dc-login-btn">Create account</button>
+          <p class="dc-login-links">
+            <button type="button" class="checkout-link-btn" data-account-view="login">Back to log in</button>
+          </p>
+        </form>
       </div>
-      <div id="dc-tab-rewards" class="dc-tab-content">
-        <p><strong>Reward Points:</strong> 1,250 PTS</p>
-        <p><strong>Current Tier:</strong> Gold Collector ($10 voucher available)</p>
+
+      <!-- Forgot password: ask for the email to send a reset link to -->
+      <div id="dc-forgot-view" class="dc-login" hidden>
+        <form id="dc-forgot-form" class="dc-login-card demo-form" novalidate>
+          <h2>Reset Password</h2>
+          <p class="dc-login-note">Enter your email and we’ll send you a link to choose a new password.</p>
+          <label for="dc-forgot-email">Email</label>
+          <input type="email" id="dc-forgot-email" autocomplete="email" placeholder="you@example.com">
+          <button type="submit" class="checkout-primary-btn dc-login-btn">Send reset link</button>
+          <p class="dc-login-links">
+            <button type="button" class="checkout-link-btn" data-account-view="login">Back to log in</button>
+          </p>
+        </form>
+      </div>
+
+      <!-- Choose a new password (shown after clicking the link in the reset email) -->
+      <div id="dc-reset-view" class="dc-login" hidden>
+        <form id="dc-reset-form" class="dc-login-card demo-form" novalidate>
+          <h2>Choose a New Password</h2>
+          <label for="dc-reset-password">New password</label>
+          <input type="password" id="dc-reset-password" autocomplete="new-password">
+          <label for="dc-reset-confirm">Confirm new password</label>
+          <input type="password" id="dc-reset-confirm" autocomplete="new-password">
+          <button type="submit" class="checkout-primary-btn dc-login-btn">Update password</button>
+        </form>
+      </div>
+
+      <!-- Message screen ("check your email", etc.); text is filled in by app.js -->
+      <div id="dc-notice-view" class="dc-login" hidden>
+        <div class="dc-login-card">
+          <h2 id="dc-notice-title"></h2>
+          <p id="dc-notice-text" class="dc-notice-text"></p>
+          <button type="button" class="checkout-primary-btn dc-login-btn" data-account-view="login">Back to log in</button>
+        </div>
+      </div>
+
+      <!-- Signed in: the member's details (filled in from Supabase by app.js) -->
+      <div id="dc-account-view" hidden>
+        <h2>Member Account</h2>
+        <div class="dc-tabs">
+          <button class="dc-tab-btn active" data-tab="dc-tab-details">User Details</button>
+          <button class="dc-tab-btn" data-tab="dc-tab-rewards">Rewards</button>
+          <button class="dc-tab-btn" data-tab="dc-tab-vouchers">My Vouchers</button>
+          <button class="dc-tab-btn" data-tab="dc-tab-history">Points History</button>
+        </div>
+        <div id="dc-tab-details" class="dc-tab-content active-tab">
+          <p><strong>Member Name:</strong> <span id="dc-member-name"></span></p>
+          <p><strong>Email:</strong> <span id="dc-member-email"></span></p>
+          <p><strong>Member Since:</strong> <span id="dc-member-since"></span></p>
+        </div>
+        <div id="dc-tab-rewards" class="dc-tab-content">
+          <p><strong>Reward Points:</strong> <span id="dc-member-points"></span></p>
+          <p><strong>Current Tier:</strong> <span id="dc-member-tier"></span></p>
+          <p class="dc-reward-note" id="dc-tier-progress"></p>
+          <h4 class="dc-reward-heading">Redeem points for a voucher</h4>
+          <div id="dc-voucher-options"></div>
+        </div>
+        <div id="dc-tab-vouchers" class="dc-tab-content">
+          <div id="dc-voucher-list"></div>
+        </div>
+        <div id="dc-tab-history" class="dc-tab-content">
+          <div id="dc-points-history"></div>
+        </div>
+        <button type="button" id="dc-logout-btn" class="demo-secondary-btn dc-logout-btn">Log out</button>
       </div>
     </div>
   </div>
